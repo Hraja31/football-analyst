@@ -115,3 +115,55 @@ The camera brand does not matter. These do:
 - Jersey-number OCR only exists in the `gamestate` backend. `lite` anchors
   identity from the roster and reports a lower `id_confidence` to say so — §7a
   is explicit that OCR alone is not trustworthy on wide footage.
+
+## `gamestate`: why it is not enabled
+
+The install is commented out in `modal_app.py`, and that is a considered state,
+not an oversight. Four attempts to build it produced four distinct blockers,
+recorded here so the next attempt starts from fact rather than from scratch.
+
+**1. It must be installed with `uv`, not pip.** Its pitch-calibration plugin
+(TVCalib, NBJW-Calib, PnLCalib — vendored at `plugins/calibration`) is declared
+as a local path under `[tool.uv.sources]`. pip does not read that table, so it
+looks the dependency up on PyPI, where it does not exist:
+
+```
+ERROR: No matching distribution found for tracklab_calibration
+```
+
+**2. It requires Python 3.9.** `requires-python = ">=3.9,<3.10"`. Modal's
+2025.06 image builder offers 3.10 and up, so `debian_slim(python_version="3.9")`
+is rejected outright. uv sidesteps this by provisioning its own interpreter.
+
+Passing `--ignore-requires-python` gets past the cap but not past blocker 1.
+
+**3. It hard-pins `torch==1.13.1`** and pulls `mmdet~=3.1.0`, `mmocr==1.0.1`
+and `openmim`. Installing alongside the `lite` stack silently backtracks torch
+from 2.4.1, and the OpenMMLab packages need `mmcv` built against a matching
+torch + CUDA. This stack dates from the 2023/24 SoccerNet challenge.
+
+**4. `_gamestate()`'s adapter is still unverified** — the `-cn soccernet`
+Hydra invocation, the hand-built `SNGS-live` layout, and the output keys
+`_read_tracklab()` greps for. None of these were reached, because the image
+never built.
+
+### The shape that should work
+
+Install `uv` in the image, `uv python install 3.9`, then `uv sync --frozen`
+inside `/opt/sn-gamestate` — the repo ships a `uv.lock`, which pins the whole
+tree including mmcv, so the dependency resolution above stops being your
+problem. Then point `_gamestate()`'s subprocess at
+`/opt/sn-gamestate/.venv/bin/python` rather than `python`, since the deps live
+in uv's venv and not in the container interpreter.
+
+Commits known to correspond to the above are pinned as `SN_GAMESTATE_SHA` and
+`TRACKLAB_SHA` in `modal_app.py`.
+
+### Why it is worth the trouble later
+
+`gamestate` is the only backend that needs no `PITCH_HOMOGRAPHY` — it
+re-localises the pitch every frame, so it tolerates a panning camera, which
+`lite` cannot. It also reads jersey numbers, which is what makes "the coach
+selects which players to track" mean anything: without OCR, `_to_contract()`
+falls back to assigning roster entries by track longevity, and the names on the
+numbers are close to arbitrary.
