@@ -1,0 +1,212 @@
+{
+  "name": "Footage → Tactics — mock CV service",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cv-mock/process",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "mock-process-webhook",
+      "name": "POST /cv-mock/process",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -220,
+        -60
+      ],
+      "webhookId": "b1f0c6d2-7a51-4f1e-9c33-7e2f1a0b4c11",
+      "notes": "§7 — starts a job, returns { job_id }",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* Mock CV service — POST /cv-mock/process   (BUILD_SPEC §6b, §7)\n *\n * Stands in for the GPU service behind the exact §6b contract, so Rung 3 is a\n * single URL change in the main workflow's \"Start CV job\" node.\n *\n * It is an n8n workflow rather than a local FastAPI app because n8n Cloud\n * cannot reach localhost, and a tunnel is one more thing that can die mid-demo.\n *\n * This node builds the whole §6b payload up front and parks it in workflow\n * static data. /cv-mock/result then serves \"processing\" on the first poll and\n * \"done\" from the second, which is what makes the polling loop in the main\n * workflow genuinely loop instead of short-circuiting on the first call.\n */\n\n// The public Supabase bucket, so heatmap_url is a real link — the standalone\n// report page served by n8n has no sample-data/ to resolve a relative path\n// against. Set this back to '' to fall back to frontend-local paths.\nconst HEATMAP_BASE = 'https://tifynfruqgkbuiyiljfb.supabase.co/storage/v1/object/public/heatmaps';\n\n// Per-track spatial metrics, lifted verbatim from sample-data/cv_result.json,\n// which scripts/generate_fixtures.py produced from per-position movement models\n// alongside the heatmap SVGs — so the figures and the images agree.\nconst TRACKS = [\n    {\n      \"player_id\": \"p_01\",\n      \"track_id\": 1,\n      \"jersey_number\": 1,\n      \"id_confidence\": 0.92,\n      \"team\": \"gk\",\n      \"distance_m\": 63.3,\n      \"top_speed_kmh\": 14.0,\n      \"avg_position\": {\n        \"x\": 6.2,\n        \"y\": 34.3\n      },\n      \"zone_share\": {\n        \"def_third\": 1.0,\n        \"mid_third\": 0.0,\n        \"att_third\": 0.0\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_02\",\n      \"track_id\": 2,\n      \"jersey_number\": 2,\n      \"id_confidence\": 0.9,\n      \"team\": \"home\",\n      \"distance_m\": 171.8,\n      \"top_speed_kmh\": 25.1,\n      \"avg_position\": {\n        \"x\": 58.8,\n        \"y\": 57.4\n      },\n      \"zone_share\": {\n        \"def_third\": 0.09,\n        \"mid_third\": 0.64,\n        \"att_third\": 0.27\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_03\",\n      \"track_id\": 3,\n      \"jersey_number\": null,\n      \"id_confidence\": 0.74,\n      \"team\": \"home\",\n      \"distance_m\": 137.6,\n      \"top_speed_kmh\": 26.8,\n      \"avg_position\": {\n        \"x\": 34.5,\n        \"y\": 41.9\n      },\n      \"zone_share\": {\n        \"def_third\": 0.52,\n        \"mid_third\": 0.48,\n        \"att_third\": 0.0\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_04\",\n      \"track_id\": 4,\n      \"jersey_number\": 6,\n      \"id_confidence\": 0.9,\n      \"team\": \"home\",\n      \"distance_m\": 137.2,\n      \"top_speed_kmh\": 26.8,\n      \"avg_position\": {\n        \"x\": 33.9,\n        \"y\": 26.1\n      },\n      \"zone_share\": {\n        \"def_third\": 0.53,\n        \"mid_third\": 0.47,\n        \"att_third\": 0.0\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_05\",\n      \"track_id\": 5,\n      \"jersey_number\": 3,\n      \"id_confidence\": 0.89,\n      \"team\": \"home\",\n      \"distance_m\": 153.3,\n      \"top_speed_kmh\": 26.2,\n      \"avg_position\": {\n        \"x\": 58.6,\n        \"y\": 10.5\n      },\n      \"zone_share\": {\n        \"def_third\": 0.1,\n        \"mid_third\": 0.63,\n        \"att_third\": 0.27\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_06\",\n      \"track_id\": 6,\n      \"jersey_number\": null,\n      \"id_confidence\": 0.74,\n      \"team\": \"home\",\n      \"distance_m\": 173.1,\n      \"top_speed_kmh\": 27.8,\n      \"avg_position\": {\n        \"x\": 48.6,\n        \"y\": 33.9\n      },\n      \"zone_share\": {\n        \"def_third\": 0.15,\n        \"mid_third\": 0.78,\n        \"att_third\": 0.06\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_07\",\n      \"track_id\": 7,\n      \"jersey_number\": 8,\n      \"id_confidence\": 0.87,\n      \"team\": \"home\",\n      \"distance_m\": 195.5,\n      \"top_speed_kmh\": 27.8,\n      \"avg_position\": {\n        \"x\": 62.8,\n        \"y\": 34.5\n      },\n      \"zone_share\": {\n        \"def_third\": 0.04,\n        \"mid_third\": 0.62,\n        \"att_third\": 0.34\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_08\",\n      \"track_id\": 8,\n      \"jersey_number\": 10,\n      \"id_confidence\": 0.9,\n      \"team\": \"home\",\n      \"distance_m\": 206.2,\n      \"top_speed_kmh\": 25.4,\n      \"avg_position\": {\n        \"x\": 61.7,\n        \"y\": 33.7\n      },\n      \"zone_share\": {\n        \"def_third\": 0.05,\n        \"mid_third\": 0.65,\n        \"att_third\": 0.3\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_09\",\n      \"track_id\": 9,\n      \"jersey_number\": null,\n      \"id_confidence\": 0.72,\n      \"team\": \"home\",\n      \"distance_m\": 145.1,\n      \"top_speed_kmh\": 24.8,\n      \"avg_position\": {\n        \"x\": 83.4,\n        \"y\": 34.0\n      },\n      \"zone_share\": {\n        \"def_third\": 0.0,\n        \"mid_third\": 0.11,\n        \"att_third\": 0.89\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_10\",\n      \"track_id\": 10,\n      \"jersey_number\": 11,\n      \"id_confidence\": 0.9,\n      \"team\": \"home\",\n      \"distance_m\": 166.9,\n      \"top_speed_kmh\": 24.0,\n      \"avg_position\": {\n        \"x\": 76.1,\n        \"y\": 12.4\n      },\n      \"zone_share\": {\n        \"def_third\": 0.0,\n        \"mid_third\": 0.33,\n        \"att_third\": 0.66\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": \"p_11\",\n      \"track_id\": 11,\n      \"jersey_number\": null,\n      \"id_confidence\": 0.8,\n      \"team\": \"home\",\n      \"distance_m\": 189.2,\n      \"top_speed_kmh\": 26.6,\n      \"avg_position\": {\n        \"x\": 74.8,\n        \"y\": 55.8\n      },\n      \"zone_share\": {\n        \"def_third\": 0.0,\n        \"mid_third\": 0.38,\n        \"att_third\": 0.61\n      },\n      \"minutes_tracked\": 1.0\n    },\n    {\n      \"player_id\": null,\n      \"track_id\": 12,\n      \"jersey_number\": null,\n      \"id_confidence\": 0.31,\n      \"team\": \"home\",\n      \"distance_m\": 141.8,\n      \"top_speed_kmh\": 22.4,\n      \"avg_position\": {\n        \"x\": 55.2,\n        \"y\": 31.6\n      },\n      \"zone_share\": {\n        \"def_third\": 0.31,\n        \"mid_third\": 0.52,\n        \"att_third\": 0.17\n      },\n      \"minutes_tracked\": 1.0\n    }\n  ];\n\nconst req = $input.first().json;\nlet body = req.body ?? {};\nif (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }\n\nconst roster = body.roster || {};\nconst rosterPlayers = Array.isArray(roster.players) ? roster.players : [];\nconst matchId = body.match_id || roster.match_id || 'm_unknown';\nconst jobId = 'job_' + Math.random().toString(36).slice(2, 10);\n\nconst heatmap = (pid) =>\n  HEATMAP_BASE ? `${HEATMAP_BASE}/${pid}.svg` : `sample-data/heatmaps/${pid}.svg`;\n\n// Re-anchor the fixture onto whichever roster we were handed, so the mock works\n// for any club and not only the sample one. This mirrors §7a: identity comes\n// from the coach's roster anchor, never from OCR alone.\nconst players = TRACKS.map((t, i) => {\n  const resolved = t.player_id !== null;\n  const rp = resolved ? rosterPlayers[i] || null : null;\n  const pid = resolved ? (rp ? rp.player_id : t.player_id) : null;\n  return {\n    player_id: pid,\n    track_id: t.track_id,\n    // null where the fixture says the shirt number was never legible — keeping\n    // that honest is the point of the id_confidence field.\n    jersey_number: t.jersey_number === null ? null : (rp ? rp.jersey_number : t.jersey_number),\n    id_confidence: t.id_confidence,\n    team: t.team,\n    heatmap_url: pid ? heatmap(pid) : null,\n    distance_m: t.distance_m,\n    top_speed_kmh: t.top_speed_kmh,\n    avg_position: t.avg_position,\n    zone_share: t.zone_share,\n    minutes_tracked: t.minutes_tracked,\n  };\n});\n\n// Team shape over resolved outfield tracks only — same definitions as\n// scripts/generate_fixtures.py, so the mock reproduces the frozen fixture.\nconst outfield = players.filter((p) => p.player_id && p.team !== 'gk');\nconst xs = outfield.map((p) => p.avg_position.x);\nconst ys = outfield.map((p) => p.avg_position.y);\nconst mx = xs.reduce((a, b) => a + b, 0) / xs.length;\nconst my = ys.reduce((a, b) => a + b, 0) / ys.length;\nconst r1 = (v) => Math.round(v * 10) / 10;\n\nconst result = {\n  job_id: jobId,\n  status: 'done',\n  match_id: matchId,\n  clip: { duration_s: 60.0, fps_processed: 5 },\n  players,\n  team_shape: {\n    home: {\n      compactness_m: r1(outfield.reduce((a, p, i) => a + Math.hypot(xs[i] - mx, ys[i] - my), 0) / outfield.length),\n      width_m: r1(Math.max(...ys) - Math.min(...ys)),\n      line_height_m: r1(Math.min(...xs)),\n    },\n  },\n};\n\nconst store = $getWorkflowStaticData('global');\nstore.jobs = store.jobs || {};\nstore.jobs[jobId] = { polls: 0, created_at: Date.now(), result };\n\n// Don't let the store grow forever across a day of demo runs.\nconst ids = Object.keys(store.jobs);\nif (ids.length > 40) ids.slice(0, ids.length - 40).forEach((k) => delete store.jobs[k]);\n\nreturn [{ json: { job_id: jobId, status: 'processing', match_id: matchId, tracks: players.length } }];\n"
+      },
+      "id": "create-job",
+      "name": "Create job",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        -60
+      ],
+      "notes": "Builds the §6b payload and caches it in workflow static data",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "mock-process-respond",
+      "name": "Respond job_id",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        260,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "cv-mock/result",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "mock-result-webhook",
+      "name": "GET /cv-mock/result",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -220,
+        200
+      ],
+      "webhookId": "c2a1d7e3-8b62-4a2f-8d44-8f3a2b1c5d22",
+      "notes": "§6b — processing, then done",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* Mock CV service — GET /cv-mock/result?job_id=...   (BUILD_SPEC §6b)\n *\n * Poll 1 -> status \"processing\".  Poll 2+ -> the full §6b payload.\n *\n * Two escape hatches the main workflow's failure branch is tested against:\n *   ?fail=1     -> status \"failed\", without having to deactivate this workflow\n *   ?instant=1  -> skip the processing poll\n */\nconst q = $input.first().json.query || {};\nconst jobId = q.job_id || '';\n\nif (q.fail === '1' || q.fail === 'true') {\n  return [{ json: { job_id: jobId, status: 'failed', error: 'mock: forced failure via ?fail=1' } }];\n}\n\nconst store = $getWorkflowStaticData('global');\nconst job = (store.jobs || {})[jobId];\n\n// Static data is written when an execution finishes, so a job we have never\n// seen is far more likely to be a lost cache than a bad id. Say so plainly\n// rather than inventing a result the main workflow would treat as real.\nif (!job) {\n  return [{ json: { job_id: jobId, status: 'failed', error: 'mock: unknown job_id (no cached job)' } }];\n}\n\njob.polls += 1;\n\nif (job.polls < 2 && q.instant !== '1') {\n  return [{ json: { job_id: jobId, status: 'processing', match_id: job.result.match_id, poll: job.polls } }];\n}\n\nreturn [{ json: job.result }];\n"
+      },
+      "id": "serve-result",
+      "name": "Serve result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        200
+      ],
+      "notes": "Poll 1 = processing, poll 2+ = done. ?fail=1 forces the failure path.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "mock-result-respond",
+      "name": "Respond cv_result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Mock CV service\n\nStands in for the Modal/RunPod GPU service behind the **exact §6b contract**, so Rung 3 is a one-line URL change in the main workflow.\n\nIt is an n8n workflow, not a local FastAPI app, because n8n Cloud cannot reach `localhost` and a tunnel is one more thing that can die mid-demo.\n\n**Endpoints**\n- `POST /webhook/cv-mock/process` → `{ job_id }`\n- `GET  /webhook/cv-mock/result?job_id=…` → §6b\n\n**Failure test:** add `?fail=1` to the result URL, or just deactivate this workflow. The main pipeline must still produce a report either way.",
+        "height": 460,
+        "width": 400,
+        "color": 4
+      },
+      "id": "sticky-40928",
+      "name": "Sticky Note 928",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -660,
+        -140
+      ]
+    }
+  ],
+  "connections": {
+    "POST /cv-mock/process": {
+      "main": [
+        [
+          {
+            "node": "Create job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create job": {
+      "main": [
+        [
+          {
+            "node": "Respond job_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /cv-mock/result": {
+      "main": [
+        [
+          {
+            "node": "Serve result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serve result": {
+      "main": [
+        [
+          {
+            "node": "Respond cv_result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "Europe/London"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

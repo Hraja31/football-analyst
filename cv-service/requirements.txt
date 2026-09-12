@@ -1,0 +1,18 @@
+# Web surface — enough to run app.py locally with CV_BACKEND=mock
+fastapi[standard]==0.115.6
+pydantic==2.10.4
+requests==2.32.3
+numpy==1.26.4
+
+# CV stack — needed by the "lite" backend
+opencv-python-headless==4.10.0.84
+ultralytics==8.3.40
+supervision==0.25.1
+scikit-learn==1.5.2
+torch==2.4.1
+torchvision==0.19.1
+
+# "gamestate" backend — installed from source, no wheels exist:
+#   git clone https://github.com/SoccerNet/sn-gamestate.git
+#   git clone https://github.com/TrackingLaboratory/tracklab.git
+#   pip install -e tracklab -e sn-gamestate

@@ -1,0 +1,1409 @@
+{
+  "name": "Footage → Tactics — Tool 1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "match-submit",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "coach-form",
+      "name": "1 Coach form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1180,
+        -60
+      ],
+      "webhookId": "a3f81c40-2d17-4c9b-9a0e-1d5b7e6f2a01",
+      "notes": "POST /webhook/match-submit — roster.json (§6a)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 2 — Normalize   (BUILD_SPEC §6a)\n *\n * The coach frontend POSTs the roster.json shape. A browser only skips the CORS\n * preflight for a \"simple\" content type, so the form sends text/plain and the\n * body lands here as a string; an application/json POST (curl, Postman, the\n * Veo pull node at Rung 3) arrives already parsed. Accept both.\n *\n * ── The only two values to edit when moving off the mock ──────────────────\n * CV_SERVICE_URL  the §6b service. Swap for the Modal/RunPod endpoint at\n *                 Rung 3 — the contract does not change, so nothing else does.\n * SUPABASE_URL    the project REST root. Not a secret; the service key lives\n *                 in the n8n credential store, never in this workflow.\n */\nconst CV_SERVICE_URL = 'https://shaneesilva.app.n8n.cloud/webhook/cv-mock';\nconst SUPABASE_URL = 'https://tifynfruqgkbuiyiljfb.supabase.co';\n\nconst req = $input.first().json;\nlet body = req.body ?? req;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    throw new Error('Submitted body is not valid JSON: ' + e.message);\n  }\n}\n\nconst players = Array.isArray(body.players) ? body.players : [];\nif (!players.length) {\n  throw new Error('No players in the submitted roster — there is nothing to analyse.');\n}\n\nreturn [{\n  json: {\n    match_id: body.match_id || 'm_' + Date.now().toString(36),\n    club_id: body.club_id || 'c_001',\n    opponent: body.opponent || 'Unknown opponent',\n    date: body.date || new Date().toISOString().slice(0, 10),\n    footage_url: body.footage_url || null,\n    coach_notes: body.coach_notes || '',\n    playing_style: body.playing_style || '',\n    players,\n    manual_stats: Array.isArray(body.manual_stats) ? body.manual_stats : [],\n    cv_service_url: CV_SERVICE_URL,\n    supabase_url: SUPABASE_URL,\n    submitted_at: new Date().toISOString(),\n  },\n}];\n"
+      },
+      "id": "normalize",
+      "name": "2 Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        -60
+      ],
+      "notes": "Contract §6a + the two endpoint constants",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ match_id: $json.match_id, status: 'accepted', report_url: '/webhook/report?match_id=' + $json.match_id }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-accepted",
+      "name": "13 Respond to coach",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -740,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.cv_service_url }}/process",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ match_id: $json.match_id, clip_url: $json.footage_url, roster: { match_id: $json.match_id, club_id: $json.club_id, players: $json.players } }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "start-cv",
+      "name": "3 Start CV job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -520,
+        -180
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "notes": "POST {CV_SERVICE_URL}/process → { job_id }. Never throws: a dead CV service routes to 4b.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c-job",
+              "leftValue": "={{ $json.job_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "cv-accepted",
+      "name": "4 CV job accepted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -300,
+        -180
+      ],
+      "notes": "No job_id = no service. Straight to the degraded branch, no polling.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "seconds"
+      },
+      "id": "wait-cv",
+      "name": "4 Wait for CV",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -80,
+        -300
+      ],
+      "webhookId": "d4b92e51-6c38-4b7a-8e15-2a6c9d3f7b12"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('2 Normalize').first().json.cv_service_url }}/result",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "job_id",
+              "value": "={{ $('3 Start CV job').first().json.job_id }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "get-cv",
+      "name": "4 Get CV result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        140,
+        -300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "notes": "GET {CV_SERVICE_URL}/result?job_id=… (§6b)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c-done",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "done",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "cv-done",
+      "name": "4 CV done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        360,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c-retry",
+              "leftValue": "={{ $runIndex < 5 && $json.status !== 'failed' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "cv-retry",
+      "name": "4 Poll again?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        360,
+        -60
+      ],
+      "notes": "$runIndex is this node's own run counter: 6 polls max (~18 s), and a reported failure gives up at once.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a-deg",
+              "name": "degraded",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "a-status",
+              "name": "status",
+              "value": "degraded",
+              "type": "string"
+            },
+            {
+              "id": "a-err",
+              "name": "cv_error",
+              "value": "={{ $json.status === 'failed' ? ('CV service reported status=failed' + ($json.error ? ': ' + $json.error : '')) : ($json.job_id ? 'CV did not finish within the polling window' : 'CV service could not be reached') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "cv-degraded",
+      "name": "4b CV unavailable",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        580,
+        -60
+      ],
+      "notes": "The required branch: CV fields go null, the run carries on (§9 node 4b).",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 5a — input 1 of the Merge: one item per squad player.\n *\n * The roster entry and the manual stats the coach typed both arrive inside the\n * same form submission, so joining them needs no Merge node — the Merge exists\n * for the join that genuinely spans two systems, CV against the squad.\n */\nconst m = $input.first().json;\nconst stats = Object.fromEntries((m.manual_stats || []).map((s) => [s.player_id, s]));\n\n// Blank boxes on the form arrive as '' and must stay null, not become 0:\n// \"no shots faced\" and \"0 shots faced\" are different claims to put in front of\n// the analyst.\nconst n = (v) => (v === '' || v === undefined || v === null ? null : Number(v));\nconst z = (v) => n(v) ?? 0;\n\nreturn (m.players || []).map((p) => ({\n  json: {\n    player_id: p.player_id,\n    name: p.name,\n    jersey_number: n(p.jersey_number),\n    position: p.position,\n    strong_foot: p.strong_foot ?? null,\n    age: n(p.age),\n    height_cm: n(p.height_cm),\n    goals: z(stats[p.player_id]?.goals),\n    assists: z(stats[p.player_id]?.assists),\n    shots: z(stats[p.player_id]?.shots),\n    shots_on_target: z(stats[p.player_id]?.shots_on_target),\n    tackles: z(stats[p.player_id]?.tackles),\n    tackles_won: z(stats[p.player_id]?.tackles_won),\n    fouls: z(stats[p.player_id]?.fouls),\n    yellow: z(stats[p.player_id]?.yellow),\n    red: z(stats[p.player_id]?.red),\n    saves: n(stats[p.player_id]?.saves),\n    shots_faced: n(stats[p.player_id]?.shots_faced),\n  },\n}));\n"
+      },
+      "id": "roster-rows",
+      "name": "5a Roster rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -740,
+        180
+      ],
+      "notes": "Input 1 — squad + the coach's manual stats",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 5b — input 2 of the Merge: one item per tracked player.\n *\n * Reached from BOTH branches — the polling loop's success output and node 4b's\n * degraded output — so this is where the two paths become one shape again.\n *\n * It always emits at least one item. A Merge input that receives zero items\n * leaves the branch with nothing to execute, and the run would never reach\n * Claude: exactly the hang that 4b exists to prevent. The sentinel below\n * matches no player_id, so \"Enrich Input 1\" drops it and every squad player\n * still comes through with CV fields simply absent.\n */\nconst src = $input.first().json;\nconst players = Array.isArray(src.players) ? src.players : [];\n\nconst rows = players\n  // Tracks that could not be resolved to a shirt carry player_id null (§7a).\n  // They are real data — they feed team shape — but they belong to nobody, so\n  // they must not be joined onto a squad row.\n  .filter((p) => p && p.player_id)\n  .map((p) => ({\n    json: {\n      player_id: p.player_id,\n      track_id: p.track_id ?? null,\n      cv_jersey_number: p.jersey_number ?? null,\n      id_confidence: p.id_confidence ?? null,\n      heatmap_url: p.heatmap_url ?? null,\n      distance_m: p.distance_m ?? null,\n      top_speed_kmh: p.top_speed_kmh ?? null,\n      avg_x: p.avg_position?.x ?? null,\n      avg_y: p.avg_position?.y ?? null,\n      zone_share: p.zone_share ?? null,\n      minutes_tracked: p.minutes_tracked ?? null,\n    },\n  }));\n\nreturn rows.length ? rows : [{ json: { player_id: '__no_cv__' } }];\n"
+      },
+      "id": "cv-rows",
+      "name": "5b CV rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -180
+      ],
+      "notes": "Input 2 — one item per tracked player, or a sentinel so the branch never stalls",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByFields",
+        "fieldsToMatchString": "player_id",
+        "joinMode": "enrichInput1",
+        "options": {}
+      },
+      "id": "merge-cv-manual",
+      "name": "5 Merge CV + manual",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1020,
+        0
+      ],
+      "notes": "Combine by player_id, Enrich Input 1 — every squad player survives even with no CV row at all.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 6 — Build profile   (BUILD_SPEC §10b)\n *\n * In:  the merged per-player rows.\n * Out: ONE item holding the whole match profile, plus the user message that\n *      node 8 hands to Claude.\n */\nconst rows = $input.all().map((i) => i.json).filter((r) => r.player_id !== '__no_cv__');\nconst m = $('2 Normalize').first().json;\n\n// The CV payload as the service returned it. The polling node does not execute\n// on the degraded branch, so referencing it has to be guarded — n8n throws when\n// you ask for a node that never ran.\nlet cv = null;\ntry {\n  const last = $('4 Get CV result').first().json;\n  if (last && last.status === 'done' && Array.isArray(last.players)) cv = last;\n} catch (e) { /* CV branch never ran */ }\n\nlet cvError = null;\nif (!cv) {\n  try { cvError = $('4b CV unavailable').first().json.cv_error; } catch (e) { cvError = 'CV data unavailable'; }\n}\nconst degraded = !cv;\n\nconst r1 = (v) => (v == null ? null : Math.round(v * 10) / 10);\nconst pct = (a, b) => (a == null || !b ? null : Math.round((a / b) * 1000) / 10);\n\nconst players = rows.map((r) => ({\n  player_id: r.player_id,\n  name: r.name,\n  jersey_number: r.jersey_number,\n  position: r.position,\n  strong_foot: r.strong_foot,\n  age: r.age,\n  height_cm: r.height_cm,\n  manual: {\n    goals: r.goals, assists: r.assists, shots: r.shots, shots_on_target: r.shots_on_target,\n    tackles: r.tackles, tackles_won: r.tackles_won, fouls: r.fouls,\n    yellow: r.yellow, red: r.red, saves: r.saves, shots_faced: r.shots_faced,\n  },\n  derived: {\n    shot_conversion_pct: pct(r.goals, r.shots),\n    shot_accuracy_pct: pct(r.shots_on_target, r.shots),\n    tackle_success_pct: pct(r.tackles_won, r.tackles),\n    save_pct: pct(r.saves, r.shots_faced),\n    goal_contributions: (r.goals || 0) + (r.assists || 0),\n  },\n  // Absent, not zeroed. A distance of null reads as \"we did not measure this\";\n  // a distance of 0 reads as \"he did not move\", and the analyst would believe it.\n  spatial: r.distance_m == null && r.avg_x == null ? null : {\n    heatmap_url: r.heatmap_url ?? null,\n    distance_m: r.distance_m ?? null,\n    top_speed_kmh: r.top_speed_kmh ?? null,\n    avg_position: r.avg_x == null ? null : { x: r.avg_x, y: r.avg_y },\n    zone_share: r.zone_share ?? null,\n    id_confidence: r.id_confidence ?? null,\n    minutes_tracked: r.minutes_tracked ?? null,\n  },\n}));\n\nconst sum = (f) => players.reduce((a, p) => a + (f(p) || 0), 0);\nconst tracked = players.filter((p) => p.spatial && p.spatial.distance_m != null);\n\nconst team = {\n  goals: sum((p) => p.manual.goals),\n  assists: sum((p) => p.manual.assists),\n  shots: sum((p) => p.manual.shots),\n  shots_on_target: sum((p) => p.manual.shots_on_target),\n  shot_conversion_pct: pct(sum((p) => p.manual.goals), sum((p) => p.manual.shots)),\n  tackles: sum((p) => p.manual.tackles),\n  tackles_won: sum((p) => p.manual.tackles_won),\n  tackle_success_pct: pct(sum((p) => p.manual.tackles_won), sum((p) => p.manual.tackles)),\n  fouls: sum((p) => p.manual.fouls),\n  yellow: sum((p) => p.manual.yellow),\n  red: sum((p) => p.manual.red),\n  squad_size: players.length,\n  players_tracked: tracked.length,\n  total_distance_m: tracked.length ? r1(tracked.reduce((a, p) => a + p.spatial.distance_m, 0)) : null,\n  mean_distance_m: tracked.length ? r1(tracked.reduce((a, p) => a + p.spatial.distance_m, 0) / tracked.length) : null,\n  peak_speed_kmh: tracked.length ? r1(Math.max(...tracked.map((p) => p.spatial.top_speed_kmh || 0))) : null,\n  shape: cv?.team_shape?.home ?? null,\n  // Named, not hidden. §7a: where identity is shaky the analyst is told so and\n  // is expected to lean on the manual stats instead.\n  low_confidence_players: players\n    .filter((p) => p.spatial && p.spatial.id_confidence != null && p.spatial.id_confidence < 0.75)\n    .map((p) => `${p.name} (${p.spatial.id_confidence})`),\n  unresolved_tracks: cv ? cv.players.filter((p) => !p.player_id).length : 0,\n};\n\n/* ── the §10b user message ─────────────────────────────────────────────── */\nconst f = (v, d = 1) => (v == null ? '—' : Number(v).toFixed(d));\nconst pc = (v) => (v == null ? 'n/a' : Number(v).toFixed(1) + '%');\nconst L = [];\nL.push(`MATCH: ${m.opponent} on ${m.date}`);\nL.push(`COACH NOTES: ${m.coach_notes || 'none given'}`);\nL.push(`PREFERRED STYLE: ${m.playing_style || 'not specified'}`);\nL.push('');\n\nif (degraded) {\n  L.push(`DATA QUALITY: computer vision did NOT complete for this match (${cvError}).`);\n  L.push('There is no spatial data at all. Base the analysis on the manual stats and the');\n  L.push('coach notes, and say plainly in the summaries where a spatial read would have');\n  L.push('been needed to judge something. Do not infer positioning, distance or workrate.');\n} else {\n  L.push(`DATA QUALITY: ${team.players_tracked}/${team.squad_size} players tracked over a ` +\n         `${cv.clip?.duration_s ?? '?'} s clip at ${cv.clip?.fps_processed ?? '?'} fps.`);\n  if (team.unresolved_tracks) {\n    L.push(`${team.unresolved_tracks} track(s) could not be matched to a shirt and were used for team shape only.`);\n  }\n  if (team.low_confidence_players.length) {\n    L.push(`Low identity confidence (<0.75), treat their spatial data with caution: ${team.low_confidence_players.join(', ')}.`);\n  }\n}\nL.push('');\n\nL.push(`TEAM TOTALS: goals ${team.goals}, assists ${team.assists}, shots ${team.shots} ` +\n       `(${team.shots_on_target} on target, conversion ${pc(team.shot_conversion_pct)}), ` +\n       `tackles ${team.tackles_won}/${team.tackles} (${pc(team.tackle_success_pct)}), ` +\n       `fouls ${team.fouls}, cards ${team.yellow}Y ${team.red}R`);\nL.push(team.shape\n  ? `TEAM SHAPE: compactness ${f(team.shape.compactness_m)} m, width ${f(team.shape.width_m)} m, ` +\n    `defensive line height ${f(team.shape.line_height_m)} m (pitch is 105 x 68 m, attacking left to right)`\n  : 'TEAM SHAPE: not available (no CV data)');\nL.push(`TEAM RUNNING: ${team.total_distance_m == null ? 'not available' :\n  `${f(team.total_distance_m)} m total, ${f(team.mean_distance_m)} m mean, peak speed ${f(team.peak_speed_kmh)} km/h`}`);\nL.push('');\n\nL.push('PLAYERS:');\nfor (const p of players) {\n  const d = p.derived;\n  const s = p.spatial;\n  L.push(`- ${p.name} (#${p.jersey_number}, ${p.position}, ${p.strong_foot || '?'} foot, player_id ${p.player_id}` +\n         `${s && s.id_confidence != null ? `, id_conf ${f(s.id_confidence, 2)}` : ''})`);\n  L.push(`  manual: goals ${p.manual.goals}, assists ${p.manual.assists}, ` +\n         `shots ${p.manual.shots} (${p.manual.shots_on_target} OT), ` +\n         `tackles ${p.manual.tackles_won}/${p.manual.tackles}, fouls ${p.manual.fouls}, ` +\n         `cards ${p.manual.yellow}Y ${p.manual.red}R, ` +\n         `saves ${p.manual.saves == null ? '—' : p.manual.saves}/${p.manual.shots_faced == null ? '—' : p.manual.shots_faced}`);\n  L.push(`  derived: conversion ${pc(d.shot_conversion_pct)}, accuracy ${pc(d.shot_accuracy_pct)}, ` +\n         `tackle success ${pc(d.tackle_success_pct)}, save rate ${pc(d.save_pct)}`);\n  L.push(s\n    ? `  spatial: distance ${f(s.distance_m)} m, top speed ${f(s.top_speed_kmh)} km/h, ` +\n      `avg pos (${f(s.avg_position?.x)}, ${f(s.avg_position?.y)}), ` +\n      `zones def/mid/att ${f(s.zone_share?.def_third, 2)}/${f(s.zone_share?.mid_third, 2)}/${f(s.zone_share?.att_third, 2)}`\n    : '  spatial: none (CV unavailable)');\n}\nL.push('');\nL.push(`Produce the analysis for all ${players.length} players, using exactly these player_id values.`);\nL.push('Return it as JSON matching the schema.');\n\nreturn [{\n  json: {\n    match_id: m.match_id,\n    club_id: m.club_id,\n    opponent: m.opponent,\n    date: m.date,\n    footage_url: m.footage_url,\n    coach_notes: m.coach_notes,\n    playing_style: m.playing_style,\n    supabase_url: m.supabase_url,\n    degraded,\n    cv_error: cvError,\n    clip: cv?.clip ?? null,\n    team,\n    players,\n    // Handed back to the frontend as-is so it can draw the heatmaps and show\n    // how many tracks went unresolved.\n    cv: cv ? { clip: cv.clip, players: cv.players, team_shape: cv.team_shape } : null,\n\n    // One shared header, then two kinds of prompt built from it. Asking for the\n    // whole 11-player report in a single call produced ~5,000 tokens over ~5\n    // minutes and JSON that would not parse; small calls parse, and they run in\n    // parallel.\n    context_header: L.join('\\n'),\n    team_prompt: L.join('\\n') + '\\n\\nReturn ONLY the team-level JSON object.',\n    claude_user_message: L.join('\\n'),\n  },\n}];\n"
+      },
+      "id": "build-profile",
+      "name": "6 Build profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        0
+      ],
+      "notes": "Derived metrics + team aggregate + the shared prompt header",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.team_prompt }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "You are an elite football analysis team (performance analyst + tactical coach) advising a semi-pro club.\n\nRules:\n- Ground every claim in the data provided. Never invent stats.\n- Where identity confidence is low or data is missing, say so and lean on the manual stats and the coach's notes. Do not fabricate.\n- Be specific and actionable, in a coach's voice — no filler.\n\nReading the spatial data: the pitch is 105 m long and 68 m wide and the team attacks left to right, so x is distance up the pitch (0 is their own goal line, 105 the opponent's) and y is across it. Zone shares are the fraction of tracked time in the defensive, middle and attacking third. The footage is a 30-90 second clip, so distances and speeds are per-clip, never a full-match workrate, and must not be extrapolated.\n\nIdentity comes from the coach's roster, not from reading shirt numbers, so an identity confidence below 0.75 means that player's spatial data may belong to a team-mate. Weight the manual stats there and say the spatial read is uncertain.\n\nOutput the JSON object and nothing else. No preamble, no commentary, no markdown code fences.\n\nReturn ONLY a JSON object with exactly these keys:\n  formation             a shape string such as \"4-3-3\"\n  best_xi               exactly 11 entries, each { \"player_id\", \"position\" }, player_id taken from the squad given\n  team_swot             { \"strengths\", \"weaknesses\", \"opportunities\", \"threats\" }, each an array of at most 2 entries of at most 16 words\n  position_weaknesses   at most 2 entries of { \"area\", \"issue\" }, issue at most 20 words\n  playing_style_note    at most 2 sentences on how the side measured up against the chosen style\n  tactics               { \"press_height\", \"defensive_line\", \"width\", \"tempo\", \"out_of_possession\" }, each a single short phrase\n\nEmit exactly this shape. Note that all four SWOT lists sit INSIDE team_swot:\n\n{\"formation\":\"4-3-3\",\"best_xi\":[{\"player_id\":\"p_01\",\"position\":\"GK\"}],\"team_swot\":{\"strengths\":[],\"weaknesses\":[],\"opportunities\":[],\"threats\":[]},\"position_weaknesses\":[{\"area\":\"\",\"issue\":\"\"}],\"playing_style_note\":\"\",\"tactics\":{\"press_height\":\"\",\"defensive_line\":\"\",\"width\":\"\",\"tempo\":\"\",\"out_of_possession\":\"\"}}\n\nThe coach's chosen playing style drives this. Defensive, Balanced and Attacking must produce genuinely different answers — a different shape or different personnel in the XI, and clearly different tactics. Defensive means a deeper line, a lower press and a compact block; Attacking means a higher line, an aggressive press and more width. Pick the XI that best serves the chosen style, not simply the eleven highest-rated players."
+            }
+          ]
+        },
+        "hasOutputParser": false,
+        "batching": {}
+      },
+      "id": "ask-claude-team",
+      "name": "8b Ask Claude - team",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1460,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "notes": "Formation, best XI, team SWOT and the tactics the chosen style implies.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 6b — one item per player, each carrying its own small prompt.\n *\n * The single-call version asked for all eleven players at once: ~5,000 output\n * tokens, ~5 minutes, and JSON that failed to parse three runs in a row. These\n * items feed a chain with Batch Size 5, so the calls run a few at a time and\n * each one is small enough to come back whole.\n *\n * A player whose JSON is malformed now costs one card, not the whole report.\n */\n// Read the profile by name. $input here is the team call's output, because this\n// node sits downstream of it to keep the two analyst calls in a single chain.\nconst m = $('6 Build profile').first().json;\nconst f = (v, d = 1) => (v == null ? '—' : Number(v).toFixed(d));\nconst pc = (v) => (v == null ? 'n/a' : Number(v).toFixed(1) + '%');\n\nreturn m.players.map((p) => {\n  const d = p.derived;\n  const s = p.spatial;\n  const L = [];\n  L.push(`MATCH: ${m.opponent} on ${m.date}`);\n  L.push(`COACH NOTES: ${m.coach_notes || 'none given'}`);\n  L.push(`PREFERRED STYLE: ${m.playing_style || 'not specified'}`);\n  if (m.degraded) {\n    L.push('DATA QUALITY: no computer-vision data for this match. Use the manual stats and');\n    L.push('the coach notes only. Do not infer positioning, distance or workrate.');\n  }\n  L.push('');\n  L.push(`PLAYER: ${p.name}, #${p.jersey_number}, ${p.position}, ${p.strong_foot || '?'} foot, player_id ${p.player_id}`);\n  L.push(`manual: goals ${p.manual.goals}, assists ${p.manual.assists}, ` +\n         `shots ${p.manual.shots} (${p.manual.shots_on_target} on target), ` +\n         `tackles ${p.manual.tackles_won}/${p.manual.tackles}, fouls ${p.manual.fouls}, ` +\n         `cards ${p.manual.yellow}Y ${p.manual.red}R, ` +\n         `saves ${p.manual.saves == null ? '—' : p.manual.saves}/${p.manual.shots_faced == null ? '—' : p.manual.shots_faced}`);\n  L.push(`derived: conversion ${pc(d.shot_conversion_pct)}, accuracy ${pc(d.shot_accuracy_pct)}, ` +\n         `tackle success ${pc(d.tackle_success_pct)}, save rate ${pc(d.save_pct)}`);\n  L.push(s\n    ? `spatial: distance ${f(s.distance_m)} m, top speed ${f(s.top_speed_kmh)} km/h, ` +\n      `avg pos (${f(s.avg_position?.x)}, ${f(s.avg_position?.y)}), ` +\n      `zones def/mid/att ${f(s.zone_share?.def_third, 2)}/${f(s.zone_share?.mid_third, 2)}/${f(s.zone_share?.att_third, 2)}` +\n      (s.id_confidence != null ? `, identity confidence ${f(s.id_confidence, 2)}` : '')\n    : 'spatial: none (CV unavailable)');\n  if (m.team.shape) {\n    L.push(`TEAM SHAPE for context: compactness ${f(m.team.shape.compactness_m)} m, ` +\n           `width ${f(m.team.shape.width_m)} m, line height ${f(m.team.shape.line_height_m)} m`);\n  }\n  L.push('');\n  L.push(`Analyse this one player. Return ONLY the JSON object for player_id \"${p.player_id}\".`);\n\n  return { json: { player_id: p.player_id, name: p.name, player_prompt: L.join('\\n') } };\n});\n"
+      },
+      "id": "player-prompts",
+      "name": "6b Player prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        0
+      ],
+      "notes": "One item per player, each with its own small prompt",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.player_prompt }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "You are an elite football analysis team (performance analyst + tactical coach) advising a semi-pro club.\n\nRules:\n- Ground every claim in the data provided. Never invent stats.\n- Where identity confidence is low or data is missing, say so and lean on the manual stats and the coach's notes. Do not fabricate.\n- Be specific and actionable, in a coach's voice — no filler.\n\nReading the spatial data: the pitch is 105 m long and 68 m wide and the team attacks left to right, so x is distance up the pitch (0 is their own goal line, 105 the opponent's) and y is across it. Zone shares are the fraction of tracked time in the defensive, middle and attacking third. The footage is a 30-90 second clip, so distances and speeds are per-clip, never a full-match workrate, and must not be extrapolated.\n\nIdentity comes from the coach's roster, not from reading shirt numbers, so an identity confidence below 0.75 means that player's spatial data may belong to a team-mate. Weight the manual stats there and say the spatial read is uncertain.\n\nOutput the JSON object and nothing else. No preamble, no commentary, no markdown code fences.\n\nReturn ONLY a JSON object for the one player given, with exactly these keys:\n  player_id       the exact player_id from the input\n  rating          number 0-10, one decimal\n  swot            { \"strengths\", \"weaknesses\", \"opportunities\", \"threats\" }, each an array of exactly 2 entries of at most 14 words\n  summary         at most 2 sentences, 35 words\n  training_plan   exactly 2 entries of { \"focus\", \"drill\", \"why\" }, tied to this match's data"
+            }
+          ]
+        },
+        "hasOutputParser": false,
+        "batching": {
+          "batchSize": 5,
+          "delayBetweenBatches": 0
+        }
+      },
+      "id": "ask-claude-players",
+      "name": "8a Ask Claude - players",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1900,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "notes": "Batch size 5 — three waves for an eleven-player squad. One ragged reply costs one card, not the report.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "id",
+          "value": "claude-sonnet-5"
+        },
+        "options": {
+          "maxTokensToSample": 4000,
+          "temperature": 0.3
+        }
+      },
+      "id": "anthropic-model",
+      "name": "Anthropic Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        1680,
+        240
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "nCZfi0N6dhPkb8fJ",
+          "name": "Anthropic account"
+        }
+      },
+      "notes": "Serves both analyst calls, so the cap must fit the larger one. At 2k the team reply was truncated mid-JSON at exactly 2000 output tokens.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 11 — Check, cache and render\n *\n * Three jobs:\n *  1. repair the two things that go wrong with a generated report — a best XI\n *     that is not eleven names, and a players[] that quietly drops somebody;\n *  2. cache the finished report in workflow static data, which is what the\n *     /report endpoint serves back to the coach frontend;\n *  3. render a self-contained HTML report, served at /report-html.\n */\nconst profile = $('6 Build profile').first().json;\nconst squad = profile.players;\nconst byId = Object.fromEntries(squad.map((p) => [p.player_id, p]));\n\n/* Parse the model's text ourselves rather than leaning on the Structured Output\n * Parser. Three live runs failed with \"Invalid JSON in model output\" and took\n * the whole execution down with them; here a fence, a preamble or one ragged\n * response costs at most a single card. */\nfunction extractJson(v) {\n  if (v && typeof v === 'object') return v;\n  let t = String(v ?? '').trim();\n  if (!t) return null;\n  const fence = t.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  if (fence) t = fence[1].trim();\n  const a = t.indexOf('{');\n  if (a === -1) return null;\n  t = t.slice(a);\n\n  // Gather every reading that parses, then keep the richest one. Stopping at\n  // the first balanced brace is not safe: a model that closes a nested object\n  // one key early leaves a stray '}' mid-reply, and the prefix ending there is\n  // perfectly valid JSON that silently drops everything after it. That cost us\n  // the tactics block on a run where the reply was otherwise complete.\n  const cands = [];\n  const tryPush = (str) => {\n    try {\n      const o = JSON.parse(str);\n      if (o && typeof o === 'object' && !Array.isArray(o)) cands.push(o);\n    } catch (e) { /* not a reading */ }\n  };\n\n  tryPush(t);\n\n  const scan = (fn) => {\n    let depth = 0, inStr = false, esc = false;\n    for (let i = 0; i < t.length; i++) {\n      const c = t[i];\n      if (esc) { esc = false; fn(c, i, depth, true); continue; }\n      if (c === '\\\\') { esc = true; fn(c, i, depth, true); continue; }\n      if (c === '\"') { inStr = !inStr; fn(c, i, depth, true); continue; }\n      if (inStr) { fn(c, i, depth, true); continue; }\n      if (c === '{') depth++;\n      else if (c === '}') depth--;\n      fn(c, i, depth, false);\n    }\n    return depth;\n  };\n\n  // every point where the braces balance is a candidate ending\n  scan((c, i, depth, inStr) => {\n    if (!inStr && c === '}' && depth <= 0) tryPush(t.slice(0, i + 1));\n  });\n\n  // and one repaired reading, dropping closers that would end the object while\n  // more fields plainly follow\n  let repaired = '', d = 0, inStr2 = false, esc2 = false;\n  for (let i = 0; i < t.length; i++) {\n    const c = t[i];\n    if (esc2) { repaired += c; esc2 = false; continue; }\n    if (c === '\\\\') { repaired += c; esc2 = true; continue; }\n    if (c === '\"') { inStr2 = !inStr2; repaired += c; continue; }\n    if (!inStr2) {\n      if (c === '{') d++;\n      else if (c === '}') {\n        if (d <= 1 && t.slice(i + 1).replace(/\\s+/g, '').startsWith(',\"')) continue;\n        d--;\n      }\n    }\n    repaired += c;\n  }\n  while (d-- > 0) repaired += '}';\n  tryPush(repaired);\n\n  if (!cands.length) return null;\n  return cands.sort((x, y) => Object.keys(y).length - Object.keys(x).length)[0];\n}\nconst textOf = (j) => (j == null ? null : (j.text ?? j.output ?? j.response ?? j));\n\n// The team call is a separate node; guard it so a failure there still leaves\n// eleven player cards standing.\nlet teamRaw = {};\ntry { teamRaw = extractJson(textOf($('8b Ask Claude - team').first().json)) || {}; } catch (e) { teamRaw = {}; }\n\n// One item per player, in the same order 6b emitted them, so a response that\n// forgets its own player_id can still be placed by position.\nlet order = [];\ntry { order = $('6b Player prompts').all().map((i) => i.json.player_id); } catch (e) { /* ignore */ }\n\nconst parsedPlayers = [];\n$input.all().forEach((item, i) => {\n  const parsed = extractJson(textOf(item.json));\n  if (!parsed) return;\n  const pid = byId[parsed.player_id] ? parsed.player_id : order[i];\n  if (pid && byId[pid]) parsedPlayers.push({ ...parsed, player_id: pid });\n});\n\nconst out = { team: teamRaw, players: parsedPlayers };\n\n/* ── players ──────────────────────────────────────────────────────────── */\nconst swot = (s) => ({\n  strengths: Array.isArray(s?.strengths) ? s.strengths : [],\n  weaknesses: Array.isArray(s?.weaknesses) ? s.weaknesses : [],\n  opportunities: Array.isArray(s?.opportunities) ? s.opportunities : [],\n  threats: Array.isArray(s?.threats) ? s.threats : [],\n});\n\nconst returned = Object.fromEntries(\n  (Array.isArray(out.players) ? out.players : []).filter((p) => p && byId[p.player_id]).map((p) => [p.player_id, p]));\n\nconst players = squad.map((sq) => {\n  const p = returned[sq.player_id];\n  if (!p) {\n    // Say so rather than inventing one. A missing card is visible; a fabricated\n    // one is not.\n    return {\n      player_id: sq.player_id, rating: null,\n      swot: swot(null), summary: 'No analysis was returned for this player.',\n      training_plan: [],\n    };\n  }\n  const r = Number(p.rating);\n  return {\n    player_id: sq.player_id,\n    rating: Number.isFinite(r) ? Math.round(Math.min(10, Math.max(0, r)) * 10) / 10 : null,\n    swot: swot(p.swot),\n    summary: typeof p.summary === 'string' ? p.summary : '',\n    training_plan: (Array.isArray(p.training_plan) ? p.training_plan : [])\n      .filter((d) => d && (d.focus || d.drill))\n      .map((d) => ({ focus: d.focus || '', drill: d.drill || '', why: d.why || '' })),\n  };\n});\n\n/* ── team ─────────────────────────────────────────────────────────────── */\nconst t = out.team || {};\nconst rank = players.slice().sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));\n\nconst seen = new Set();\nlet xi = (Array.isArray(t.best_xi) ? t.best_xi : [])\n  .filter((s) => s && byId[s.player_id] && !seen.has(s.player_id) && seen.add(s.player_id))\n  .map((s) => ({ player_id: s.player_id, position: s.position || byId[s.player_id].position }));\n\n// Top up from the highest-rated players still unpicked, in their own listed\n// position, until there are eleven — or until the squad runs out.\nfor (const p of rank) {\n  if (xi.length >= 11) break;\n  if (seen.has(p.player_id)) continue;\n  seen.add(p.player_id);\n  xi.push({ player_id: p.player_id, position: byId[p.player_id].position });\n}\nxi = xi.slice(0, 11);\n\n// A model that closes team_swot early leaves opportunities and threats sitting\n// at the top level. Take them from wherever they landed rather than showing the\n// coach two empty columns.\nconst tsRaw = { ...(t.team_swot || {}) };\nfor (const k of ['strengths', 'weaknesses', 'opportunities', 'threats']) {\n  if (!Array.isArray(tsRaw[k]) && Array.isArray(t[k])) tsRaw[k] = t[k];\n}\n\nconst team = {\n  formation: typeof t.formation === 'string' && t.formation ? t.formation : '4-3-3',\n  best_xi: xi,\n  team_swot: swot(tsRaw),\n  position_weaknesses: (Array.isArray(t.position_weaknesses) ? t.position_weaknesses : [])\n    .filter((w) => w && (w.area || w.issue))\n    .map((w) => ({ area: w.area || '', issue: w.issue || '' })),\n  playing_style_note: typeof t.playing_style_note === 'string' ? t.playing_style_note : '',\n  // How the side should actually set up for the style the coach picked.\n  tactics: t.tactics && typeof t.tactics === 'object'\n    ? Object.fromEntries(Object.entries(t.tactics)\n        .filter(([, v]) => typeof v === 'string' && v.trim())\n        .map(([k, v]) => [k, v.trim()]))\n    : null,\n};\n\n/* ── the HTML fallback report ─────────────────────────────────────────── */\nconst esc = (s) => String(s ?? '').replace(/[&<>\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));\nconst li = (xs) => (xs.length ? `<ul>${xs.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p class=\"none\">—</p>');\nconst fmt = (v, d = 0) => (v == null ? '—' : Number(v).toFixed(d));\n\nconst swotHtml = (s) => ['strengths', 'weaknesses', 'opportunities', 'threats']\n  .map((k) => `<div class=\"sw ${k[0]}\"><h4>${k}</h4>${li(s[k])}</div>`).join('');\n\nconst cards = players.slice().sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1)).map((p) => {\n  const sq = byId[p.player_id];\n  const sp = sq.spatial;\n  const rc = p.rating == null ? '' : p.rating >= 7.5 ? 'hi' : p.rating >= 6.5 ? 'mid' : 'lo';\n  const stats = [\n    [sq.manual.goals, 'goals'], [sq.manual.assists, 'assists'],\n    [sp ? fmt(sp.distance_m) + ' m' : '—', 'distance'],\n    [sp ? fmt(sp.top_speed_kmh, 1) : '—', 'km/h'],\n  ].map(([v, l]) => `<div><b>${esc(v)}</b><span>${l}</span></div>`).join('');\n  const plan = p.training_plan.map((d) =>\n    `<div class=\"drill\"><b>${esc(d.focus)}</b> — ${esc(d.drill)}${d.why ? `<em>${esc(d.why)}</em>` : ''}</div>`).join('');\n  return `<article class=\"card\">\n  <header><span class=\"shirt\">${esc(sq.jersey_number)}</span>\n    <span class=\"who\"><b>${esc(sq.name)}</b><small>${esc(sq.position)} · ${esc(sq.strong_foot || '?')} foot${\n      sp && sp.id_confidence != null ? ` · ID ${Math.round(sp.id_confidence * 100)}%` : ''}</small></span>\n    <span class=\"rating ${rc}\">${p.rating == null ? '—' : p.rating.toFixed(1)}</span></header>\n  ${sp && sp.heatmap_url ? `<img class=\"hm\" src=\"${esc(sp.heatmap_url)}\" alt=\"Heatmap for ${esc(sq.name)}\" loading=\"lazy\">` : ''}\n  <div class=\"stats\">${stats}</div>\n  <p class=\"sum\">${esc(p.summary)}</p>\n  <div class=\"swot\">${swotHtml(p.swot)}</div>\n  ${plan ? `<div class=\"plan\"><h4>Training plan</h4>${plan}</div>` : ''}\n</article>`;\n}).join('');\n\nconst banner = profile.degraded\n  ? `<p class=\"banner\">⚠ Computer vision did not complete for this match (${esc(profile.cv_error)}). Spatial data is missing; everything below rests on the manual stats and the coach's notes.</p>`\n  : profile.team.unresolved_tracks\n    ? `<p class=\"note\">${profile.team.unresolved_tracks} track(s) could not be matched to a shirt number and were used for team shape only.</p>`\n    : '';\n\nconst html = `<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>${esc(profile.opponent)} · ${esc(profile.date)} — match report</title>\n<style>\n:root{color-scheme:dark}\n*{box-sizing:border-box}\nbody{margin:0;background:#0b1014;color:#dce7ee;font:15px/1.55 ui-sans-serif,system-ui,-apple-system,\"Segoe UI\",sans-serif}\n.wrap{max-width:1080px;margin:0 auto;padding:28px 18px 64px}\nh1{font-size:1.5rem;margin:0 0 2px}\n.sub{color:#8ba0ae;margin:0 0 20px}\n.badge{display:inline-block;background:#1b2a33;border:1px solid #2c3f4c;border-radius:999px;padding:3px 12px;font-weight:600;margin-right:8px}\n.banner{background:#43220f;border:1px solid #8a4a1c;border-radius:10px;padding:11px 14px}\n.note{color:#8ba0ae;font-size:.9rem}\n.panel{background:#111a21;border:1px solid #1f2c35;border-radius:14px;padding:18px;margin:0 0 20px}\nh2{font-size:1.05rem;margin:0 0 12px;letter-spacing:.02em;text-transform:uppercase;color:#8ba0ae}\n.swot{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}\n.sw h4{margin:0 0 5px;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#8ba0ae}\n.sw{border-left:3px solid #2c3f4c;padding-left:10px}\n.sw.s{border-color:#2fbf71}.sw.w{border-color:#d6402a}.sw.o{border-color:#4ea3e0}.sw.t{border-color:#e0a33e}\nul{margin:0;padding-left:17px}li{margin:0 0 3px}\n.none{margin:0;color:#5f7381}\n.xi{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}\n.xi div{background:#16222a;border-radius:8px;padding:7px 11px;font-size:.9rem}\n.xi span{color:#8ba0ae;font-size:.78rem;display:block}\n.weak{margin:0 0 6px}\n.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}\n.card{background:#111a21;border:1px solid #1f2c35;border-radius:14px;overflow:hidden}\n.card header{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid #1f2c35}\n.shirt{width:30px;height:30px;flex:none;border-radius:50%;background:#22333d;display:grid;place-items:center;font-weight:700;font-size:.85rem}\n.who{flex:1;min-width:0}.who b{display:block}.who small{color:#8ba0ae}\n.rating{font-size:1.25rem;font-weight:700}\n.rating.hi{color:#2fbf71}.rating.mid{color:#e0a33e}.rating.lo{color:#d6402a}\n.hm{display:block;width:100%;background:#0f2417}\n.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#1f2c35}\n.stats div{background:#0e161c;padding:9px 4px;text-align:center}\n.stats b{display:block}.stats span{color:#8ba0ae;font-size:.72rem}\n.sum{padding:0 15px;margin:13px 0}\n.card .swot{padding:0 15px 6px;grid-template-columns:1fr 1fr}\n.plan{padding:4px 15px 15px}\n.plan h4{margin:8px 0 6px;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#8ba0ae}\n.drill{background:#16222a;border-radius:8px;padding:8px 11px;margin:0 0 6px;font-size:.88rem}\n.drill em{display:block;color:#8ba0ae;font-style:normal;font-size:.82rem;margin-top:3px}\nfooter{color:#5f7381;font-size:.82rem;margin-top:26px}\n</style></head><body><div class=\"wrap\">\n<h1>${esc(profile.opponent)}</h1>\n<p class=\"sub\">${esc(profile.date)} · match ${esc(profile.match_id)}</p>\n${banner}\n<div class=\"panel\">\n  <h2>Team</h2>\n  <p><span class=\"badge\">${esc(team.formation)}</span>${esc(team.playing_style_note)}</p>\n  <div class=\"xi\">${team.best_xi.map((s) => `<div><b>${esc(byId[s.player_id]?.name || s.player_id)}</b><span>${esc(s.position)}</span></div>`).join('')}</div>\n</div>\n${team.tactics && Object.keys(team.tactics).length ? `<div class=\"panel\"><h2>How to set up</h2><div class=\"xi\">${\n  Object.entries(team.tactics).map(([k, v]) => `<div><b>${esc(v)}</b><span>${esc(k.replace(/_/g, ' '))}</span></div>`).join('')}</div></div>` : ''}\n<div class=\"panel\"><h2>Team SWOT</h2><div class=\"swot\">${swotHtml(team.team_swot)}</div></div>\n${team.position_weaknesses.length ? `<div class=\"panel\"><h2>Where it hurts</h2>${\n  team.position_weaknesses.map((w) => `<p class=\"weak\"><b>${esc(w.area)}</b> — ${esc(w.issue)}</p>`).join('')}</div>` : ''}\n<h2>Players</h2>\n<div class=\"cards\">${cards}</div>\n<footer>Footage → Tactics · generated ${new Date().toISOString().replace('T', ' ').slice(0, 16)} UTC ·\nmanual stats entered by the coach, spatial data from the CV service, analysis by Claude.</footer>\n</div></body></html>`;\n\n/* ── cache ────────────────────────────────────────────────────────────── */\nconst payload = {\n  status: 'done',\n  match_id: profile.match_id,\n  opponent: profile.opponent,\n  date: profile.date,\n  degraded: profile.degraded,\n  cv_error: profile.cv_error,\n  generated_at: new Date().toISOString(),\n  team,\n  players,\n  cv: profile.cv,\n};\n\nconst store = $getWorkflowStaticData('global');\nstore.reports = store.reports || {};\nstore.reports[profile.match_id] = { ...payload, html };\n\n// Bounded, so a day of demo runs cannot grow the stored data without limit.\nconst keys = Object.keys(store.reports);\nif (keys.length > 25) keys.slice(0, keys.length - 25).forEach((k) => delete store.reports[k]);\n\nreturn [{ json: { ...payload, club_id: profile.club_id, supabase_url: profile.supabase_url, html } }];\n"
+      },
+      "id": "format-report",
+      "name": "11 Format report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        0
+      ],
+      "notes": "Parses both calls, repairs the XI, caches the report, renders the HTML",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('6 Build profile').first().json.supabase_url }}/rest/v1/clubs",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('6 Build profile').first().json.club_id, name: $('6 Build profile').first().json.club_id }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "upsert-club",
+      "name": "7a Upsert club",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1240,
+        260
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ZhPDapYvDdSBBZ9m",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('6 Build profile').first().json.supabase_url }}/rest/v1/players",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('6 Build profile').first().json.players.map(p => ({ id: p.player_id, club_id: $('6 Build profile').first().json.club_id, name: p.name, age: p.age, height_cm: p.height_cm, jersey_number: p.jersey_number, position: p.position, strong_foot: p.strong_foot }))) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "upsert-players",
+      "name": "7b Upsert players",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1440,
+        380
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ZhPDapYvDdSBBZ9m",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('6 Build profile').first().json.supabase_url }}/rest/v1/matches",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ id: $('6 Build profile').first().json.match_id, club_id: $('6 Build profile').first().json.club_id, date: $('6 Build profile').first().json.date, opponent: $('6 Build profile').first().json.opponent, footage_url: $('6 Build profile').first().json.footage_url }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "upsert-match",
+      "name": "7c Upsert match",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1640,
+        380
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ZhPDapYvDdSBBZ9m",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('6 Build profile').first().json.supabase_url }}/rest/v1/player_match_stats",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('6 Build profile').first().json.players.map(p => ({ player_id: p.player_id, match_id: $('6 Build profile').first().json.match_id, heatmap_url: p.spatial?.heatmap_url ?? null, distance_m: p.spatial?.distance_m ?? null, top_speed_kmh: p.spatial?.top_speed_kmh ?? null, avg_x: p.spatial?.avg_position?.x ?? null, avg_y: p.spatial?.avg_position?.y ?? null, zone_share: p.spatial?.zone_share ?? null, id_confidence: p.spatial?.id_confidence ?? null, goals: p.manual.goals, assists: p.manual.assists, shots: p.manual.shots, shots_on_target: p.manual.shots_on_target, tackles: p.manual.tackles, tackles_won: p.manual.tackles_won, fouls: p.manual.fouls, yellow: p.manual.yellow, red: p.manual.red, saves: p.manual.saves, shots_faced: p.manual.shots_faced }))) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "upsert-stats",
+      "name": "7d Upsert player stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1840,
+        380
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ZhPDapYvDdSBBZ9m",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "notes": "CV columns are null on the degraded branch — the row still lands.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('11 Format report').first().json.supabase_url }}/rest/v1/reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('11 Format report').first().json.players.map(p => ({ player_id: p.player_id, match_id: $('11 Format report').first().json.match_id, rating: p.rating, swot: p.swot, summary: p.summary, training_plan: p.training_plan }))) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "upsert-reports",
+      "name": "10a Save player reports",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1920,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ZhPDapYvDdSBBZ9m",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('11 Format report').first().json.supabase_url }}/rest/v1/team_reports",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "resolution=merge-duplicates,return=minimal"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ match_id: $('11 Format report').first().json.match_id, team_swot: $('11 Format report').first().json.team.team_swot, formation: $('11 Format report').first().json.team.formation, best_xi: $('11 Format report').first().json.team.best_xi, position_weaknesses: $('11 Format report').first().json.team.position_weaknesses, playing_style_note: $('11 Format report').first().json.team.playing_style_note }) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "upsert-team-report",
+      "name": "10b Save team report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2140,
+        0
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ZhPDapYvDdSBBZ9m",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "report",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "report-webhook",
+      "name": "12 Report request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1180,
+        620
+      ],
+      "webhookId": "e5c03a72-9f14-4d26-b731-3b8e0c4a6d23",
+      "notes": "GET /webhook/report?match_id=… — what the frontend polls",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 12 — Report endpoint: GET /report?match_id=...\n *\n * Served from workflow static data, which node 11 writes at the end of a run.\n * A cache miss falls through to Supabase, so a report survives an n8n restart —\n * but the demo never depends on the database being up.\n */\n// Keep in step with SUPABASE_URL in the Normalize node. This branch has its own\n// trigger, so it cannot read that node's output.\nconst SUPABASE_URL = 'https://tifynfruqgkbuiyiljfb.supabase.co';\n\nconst q = $input.first().json.query || {};\nconst matchId = (q.match_id || '').trim();\n\nif (!matchId) {\n  return [{ json: { found: true, status: 'error', error: 'match_id query parameter is required' } }];\n}\n\nconst hit = ($getWorkflowStaticData('global').reports || {})[matchId];\nif (hit) {\n  const { html, ...report } = hit;   // the HTML is served separately, not inlined here\n  return [{ json: { found: true, source: 'n8n', ...report } }];\n}\n\nreturn [{ json: { found: false, match_id: matchId, status: 'processing', stage: 'claude', supabase_url: SUPABASE_URL } }];\n"
+      },
+      "id": "lookup-report",
+      "name": "12 Lookup report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c-found",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "report-ready",
+      "name": "12 Report ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -740,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.supabase_url }}/rest/v1/v_match_report",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "match_id",
+              "value": "=eq.{{ $json.match_id }}"
+            },
+            {
+              "name": "select",
+              "value": "*"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "fetch-db",
+      "name": "12b Fetch from Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -520,
+        780
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "ZhPDapYvDdSBBZ9m",
+          "name": "Supabase account"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "notes": "Cache miss. Reads the v_match_report view; if the DB is not configured this just yields nothing.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 12b — cache miss: rebuild the response from Supabase.\n *\n * Reads the v_match_report view (db/schema.sql), which folds team_reports,\n * reports and player_match_stats into one row per match. If the database is not\n * configured or the match is not there yet, answer \"processing\" — the frontend\n * polls, so an honest not-yet is the right answer, never a fabricated report.\n */\nconst req = $('12 Lookup report').first().json;\nconst rows = $input.all().map((i) => i.json).filter((r) => r && r.match_id && r.team);\n\nif (!rows.length) {\n  return [{ json: { status: 'processing', stage: 'claude', match_id: req.match_id, source: 'supabase' } }];\n}\n\nconst row = rows[0];\nconst cvPlayers = Array.isArray(row.cv_players) ? row.cv_players.filter((p) => p.heatmap_url || p.avg_position) : [];\n\nreturn [{\n  json: {\n    status: 'done',\n    source: 'supabase',\n    match_id: row.match_id,\n    degraded: cvPlayers.length === 0,\n    team: row.team,\n    players: Array.isArray(row.players) ? row.players : [],\n    cv: cvPlayers.length ? { players: cvPlayers } : null,\n  },\n}];\n"
+      },
+      "id": "assemble-db",
+      "name": "12b Assemble from DB",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -300,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-report",
+      "name": "12 Respond report",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -80,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "report-html",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "html-webhook",
+      "name": "11b Report page request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1180,
+        1000
+      ],
+      "webhookId": "f6d14b83-0a25-4e37-c842-4c9f1d5b7e34",
+      "notes": "GET /webhook/report-html?match_id=… — the shareable report",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 11b — GET /report-html?match_id=...  serves the rendered report as a page.\n *\n * This is the shareable artifact: one link a coach can open on a phone with no\n * frontend, no build step and no network beyond the heatmap images.\n */\nconst q = $input.first().json.query || {};\nconst matchId = (q.match_id || '').trim();\nconst hit = ($getWorkflowStaticData('global').reports || {})[matchId];\n\nif (hit && hit.html) return [{ json: { html: hit.html } }];\n\nconst esc = (s) => String(s ?? '').replace(/[&<>\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));\nreturn [{\n  json: {\n    html: `<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Report not ready</title>\n<style>body{margin:0;background:#0b1014;color:#dce7ee;font:15px/1.6 ui-sans-serif,system-ui,sans-serif;\ndisplay:grid;place-items:center;min-height:100vh;text-align:center;padding:24px}\ncode{background:#16222a;padding:2px 6px;border-radius:5px}</style></head>\n<body><div><h1>Not ready</h1>\n<p>No report is cached for <code>${esc(matchId || '(no match_id)')}</code>.</p>\n<p style=\"color:#8ba0ae\">Either the run has not finished yet, or this n8n instance restarted after it did.\nThe durable copy lives in Supabase.</p></div></body></html>`,\n  },\n}];\n"
+      },
+      "id": "render-page",
+      "name": "11b Render page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-html",
+      "name": "11b Respond HTML",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -740,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Footage → Tactics — main pipeline\n\nOne Veo clip + the coach's manual stats → a tracked heatmap and a Claude analyst report.\n\n**Flow:** form → CV (external HTTP) → merge → profile → Claude → store → serve.\n\nn8n orchestrates; the CV is a single external call. Node 13 answers the form straight away with `{ match_id }`, so the coach's browser never sits on an open request while the analysis runs.\n\n**Set before running:** `CV_SERVICE_URL` and `SUPABASE_URL` at the top of **2 Normalize** (and the same Supabase URL in **12 Lookup report**). Credentials live in the n8n credential store — there is not a single secret in this JSON.",
+        "height": 520,
+        "width": 380,
+        "color": 4
+      },
+      "id": "sticky-665776",
+      "name": "Sticky Note 5776",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 4 / 4b — the polling loop and the failure branch\n\n`Poll again?` loops back into `Wait for CV`: up to **6 polls, 3 s apart**, and it gives up immediately on a reported `failed`.\n\nEverything that can fail here is set to **continue on error**, so a dead CV service produces a degraded item rather than a stopped execution.\n\n**This branch is the design, not a nicety.** Kill the mock CV workflow and the run still finishes: spatial fields null, `degraded: true`, a report built on manual stats and the coach's notes, and a banner on the frontend saying exactly that.",
+        "height": 380,
+        "width": 380,
+        "color": 3
+      },
+      "id": "sticky-285554",
+      "name": "Sticky Note 5554",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        280,
+        -620
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 7 / 10 — Supabase on a side branch\n\nPersistence hangs off `Build profile` and `Format report` rather than sitting in the main line, and every write continues on error.\n\nIf the database is down, misconfigured, or simply not created yet, the coach still gets the report. The cost of that choice is that a write failure is silent — check the execution log, not the report, to know whether a match was stored.",
+        "height": 300,
+        "width": 380,
+        "color": 6
+      },
+      "id": "sticky-436759",
+      "name": "Sticky Note 6759",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### 12 — serving the report\n\n`GET /webhook/report?match_id=…` → the JSON the frontend renders.\n`GET /webhook/report-html?match_id=…` → a self-contained page to share.\n\nReads come from workflow static data first — written at the end of every run, so the demo never depends on the database — and fall back to the `v_match_report` view in Supabase, which is what survives an n8n restart.\n\nA match that is not ready answers `{ status: 'processing' }`. It never answers with a guess.",
+        "height": 340,
+        "width": 380,
+        "color": 5
+      },
+      "id": "sticky-425684",
+      "name": "Sticky Note 5684",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "1 Coach form": {
+      "main": [
+        [
+          {
+            "node": "2 Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2 Normalize": {
+      "main": [
+        [
+          {
+            "node": "13 Respond to coach",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "5a Roster rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "13 Respond to coach": {
+      "main": [
+        [
+          {
+            "node": "3 Start CV job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3 Start CV job": {
+      "main": [
+        [
+          {
+            "node": "4 CV job accepted?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 CV job accepted?": {
+      "main": [
+        [
+          {
+            "node": "4 Wait for CV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "4b CV unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 Wait for CV": {
+      "main": [
+        [
+          {
+            "node": "4 Get CV result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 Get CV result": {
+      "main": [
+        [
+          {
+            "node": "4 CV done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 CV done?": {
+      "main": [
+        [
+          {
+            "node": "5b CV rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "4 Poll again?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 Poll again?": {
+      "main": [
+        [
+          {
+            "node": "4 Wait for CV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "4b CV unavailable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4b CV unavailable": {
+      "main": [
+        [
+          {
+            "node": "5b CV rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5a Roster rows": {
+      "main": [
+        [
+          {
+            "node": "5 Merge CV + manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5b CV rows": {
+      "main": [
+        [
+          {
+            "node": "5 Merge CV + manual",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "5 Merge CV + manual": {
+      "main": [
+        [
+          {
+            "node": "6 Build profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6 Build profile": {
+      "main": [
+        [
+          {
+            "node": "8b Ask Claude - team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "7a Upsert club",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8b Ask Claude - team": {
+      "main": [
+        [
+          {
+            "node": "6b Player prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6b Player prompts": {
+      "main": [
+        [
+          {
+            "node": "8a Ask Claude - players",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7a Upsert club": {
+      "main": [
+        [
+          {
+            "node": "7b Upsert players",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7b Upsert players": {
+      "main": [
+        [
+          {
+            "node": "7c Upsert match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7c Upsert match": {
+      "main": [
+        [
+          {
+            "node": "7d Upsert player stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8a Ask Claude - players": {
+      "main": [
+        [
+          {
+            "node": "11 Format report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11 Format report": {
+      "main": [
+        [
+          {
+            "node": "10a Save player reports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10a Save player reports": {
+      "main": [
+        [
+          {
+            "node": "10b Save team report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "8b Ask Claude - team",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "8a Ask Claude - players",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12 Report request": {
+      "main": [
+        [
+          {
+            "node": "12 Lookup report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12 Lookup report": {
+      "main": [
+        [
+          {
+            "node": "12 Report ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12 Report ready?": {
+      "main": [
+        [
+          {
+            "node": "12 Respond report",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "12b Fetch from Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12b Fetch from Supabase": {
+      "main": [
+        [
+          {
+            "node": "12b Assemble from DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12b Assemble from DB": {
+      "main": [
+        [
+          {
+            "node": "12 Respond report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11b Report page request": {
+      "main": [
+        [
+          {
+            "node": "11b Render page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11b Render page": {
+      "main": [
+        [
+          {
+            "node": "11b Respond HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "timezone": "Europe/London"
+  },
+  "active": false,
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

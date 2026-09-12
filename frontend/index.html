@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Footage → Tactics</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>Footage <span class="arrow">→</span> Tactics</h1>
+  </div>
+  <div class="meta" id="matchMeta"></div>
+</header>
+
+<main>
+  <!-- ── Submit view ───────────────────────────────────────────── -->
+  <section id="submitView" class="panel">
+    <h2>New match analysis</h2>
+    <p class="lede">Upload a Veo panorama clip and enter the stats only a human can see.
+       The pipeline handles tracking, heatmaps and the analyst report.</p>
+
+    <form id="matchForm">
+      <div class="grid2">
+        <label>Opponent<input name="opponent" value="Riverside FC" required></label>
+        <label>Match date<input name="date" type="date" value="2026-09-13" required></label>
+      </div>
+      <label>Veo panorama clip URL
+        <input name="footage_url" value="https://example.com/veo/veo_clip.mp4" required>
+        <small>Use the <strong>panorama</strong> export, not the AI follow-cam — panning breaks tracking.</small>
+      </label>
+      <label>Coach notes
+        <textarea name="coach_notes" rows="3">We conceded twice down our left in the first half. I want us pressing higher but we looked leggy after 60 minutes. Osei was isolated up top all game.</textarea>
+      </label>
+      <label>Preferred playing style<input name="playing_style" value="High press, build from the back"></label>
+
+      <details class="roster">
+        <summary>Roster &amp; manual stats <span id="rosterCount"></span></summary>
+        <div id="rosterTable"></div>
+      </details>
+
+      <div class="actions">
+        <button type="submit" class="primary" id="submitBtn">Run analysis</button>
+        <button type="button" class="ghost" id="demoBtn">Load sample report</button>
+      </div>
+      <p class="hint" id="endpointHint"></p>
+    </form>
+  </section>
+
+  <!-- ── Progress view ─────────────────────────────────────────── -->
+  <section id="progressView" class="panel" hidden>
+    <h2>Analysing match</h2>
+    <ol class="steps" id="steps">
+      <li data-step="submit">Match submitted</li>
+      <li data-step="cv">Tracking players &amp; building heatmaps</li>
+      <li data-step="merge">Merging spatial + manual stats</li>
+      <li data-step="claude">Claude analyst writing the report</li>
+      <li data-step="done">Report ready</li>
+    </ol>
+    <p class="hint" id="progressHint"></p>
+  </section>
+
+  <!-- ── Report view ───────────────────────────────────────────── -->
+  <section id="reportView" hidden>
+    <div class="panel" id="teamPanel">
+      <div class="teamhead">
+        <div>
+          <h2>Team report</h2>
+          <p class="lede" id="styleNote"></p>
+        </div>
+        <div class="formation" id="formationBadge"></div>
+      </div>
+      <div class="xi-wrap">
+        <div class="xi-left">
+          <div id="pitch"></div>
+          <div id="posWeak" class="weaknesses"></div>
+        </div>
+        <div id="teamSwot" class="swotgrid"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Players <span class="count" id="playerCount"></span></h2>
+      <div id="players" class="players"></div>
+    </div>
+
+    <p class="footnote" id="dataNote"></p>
+    <p class="footnote"><a id="shareLink" href="#" target="_blank" rel="noopener" hidden>Open the shareable report page →</a></p>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

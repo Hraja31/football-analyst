@@ -1,0 +1,35 @@
+{
+  "match_id": "m_001",
+  "club_id": "c_001",
+  "opponent": "Riverside FC",
+  "date": "2026-09-13",
+  "footage_url": "https://example.com/veo/veo_clip.mp4",
+  "coach_notes": "We conceded twice down our left in the first half. Their right winger kept getting in behind Doyle. I want us pressing higher but we looked leggy after 60 minutes. Osei was isolated up top all game.",
+  "playing_style": "High press, build from the back",
+  "players": [
+    { "player_id": "p_01", "name": "T. Wallace",  "jersey_number": 1,  "position": "GK",  "strong_foot": "R", "age": 29, "height_cm": 188 },
+    { "player_id": "p_02", "name": "R. Boyd",     "jersey_number": 2,  "position": "RB",  "strong_foot": "R", "age": 24, "height_cm": 178 },
+    { "player_id": "p_03", "name": "M. Ferreira", "jersey_number": 5,  "position": "CB",  "strong_foot": "R", "age": 31, "height_cm": 186 },
+    { "player_id": "p_04", "name": "K. Adeyemi",  "jersey_number": 6,  "position": "CB",  "strong_foot": "L", "age": 26, "height_cm": 190 },
+    { "player_id": "p_05", "name": "S. Doyle",    "jersey_number": 3,  "position": "LB",  "strong_foot": "L", "age": 22, "height_cm": 175 },
+    { "player_id": "p_06", "name": "J. Nkemelu",  "jersey_number": 4,  "position": "CDM", "strong_foot": "R", "age": 28, "height_cm": 182 },
+    { "player_id": "p_07", "name": "A. Whitcombe","jersey_number": 8,  "position": "CM",  "strong_foot": "R", "age": 25, "height_cm": 179 },
+    { "player_id": "p_08", "name": "L. Marchetti","jersey_number": 10, "position": "CM",  "strong_foot": "L", "age": 23, "height_cm": 174 },
+    { "player_id": "p_09", "name": "D. Osei",     "jersey_number": 9,  "position": "ST",  "strong_foot": "R", "age": 24, "height_cm": 181 },
+    { "player_id": "p_10", "name": "C. Vasquez",  "jersey_number": 11, "position": "LW",  "strong_foot": "R", "age": 21, "height_cm": 172 },
+    { "player_id": "p_11", "name": "H. Bramall",  "jersey_number": 7,  "position": "RW",  "strong_foot": "R", "age": 27, "height_cm": 177 }
+  ],
+  "manual_stats": [
+    { "player_id": "p_01", "goals": 0, "assists": 0, "shots": 0, "shots_on_target": 0, "tackles": 0, "tackles_won": 0, "fouls": 0, "yellow": 0, "red": 0, "saves": 4, "shots_faced": 6 },
+    { "player_id": "p_02", "goals": 0, "assists": 1, "shots": 1, "shots_on_target": 0, "tackles": 5, "tackles_won": 3, "fouls": 2, "yellow": 1, "red": 0, "saves": null, "shots_faced": null },
+    { "player_id": "p_03", "goals": 0, "assists": 0, "shots": 1, "shots_on_target": 1, "tackles": 6, "tackles_won": 5, "fouls": 1, "yellow": 0, "red": 0, "saves": null, "shots_faced": null },
+    { "player_id": "p_04", "goals": 1, "assists": 0, "shots": 2, "shots_on_target": 1, "tackles": 4, "tackles_won": 4, "fouls": 0, "yellow": 0, "red": 0, "saves": null, "shots_faced": null },
+    { "player_id": "p_05", "goals": 0, "assists": 0, "shots": 0, "shots_on_target": 0, "tackles": 7, "tackles_won": 2, "fouls": 3, "yellow": 1, "red": 0, "saves": null, "shots_faced": null },
+    { "player_id": "p_06", "goals": 0, "assists": 0, "shots": 1, "shots_on_target": 0, "tackles": 8, "tackles_won": 6, "fouls": 2, "yellow": 0, "red": 0, "saves": null, "shots_faced": null },
+    { "player_id": "p_07", "goals": 0, "assists": 1, "shots": 2, "shots_on_target": 1, "tackles": 4, "tackles_won": 3, "fouls": 1, "yellow": 0, "red": 0, "saves": null, "shots_faced": null },
+    { "player_id": "p_08", "goals": 1, "assists": 1, "shots": 3, "shots_on_target": 2, "tackles": 2, "tackles_won": 1, "fouls": 0, "yellow": 0, "red": 0, "saves": null, "shots_faced": null },
+    { "player_id": "p_09", "goals": 1, "assists": 0, "shots": 5, "shots_on_target": 2, "tackles": 1, "tackles_won": 0, "fouls": 1, "yellow": 0, "red": 0, "saves": null, "shots_faced": null },
+    { "player_id": "p_10", "goals": 0, "assists": 0, "shots": 2, "shots_on_target": 1, "tackles": 2, "tackles_won": 1, "fouls": 0, "yellow": 0, "red": 0, "saves": null, "shots_faced": null },
+    { "player_id": "p_11", "goals": 0, "assists": 1, "shots": 3, "shots_on_target": 2, "tackles": 3, "tackles_won": 2, "fouls": 1, "yellow": 0, "red": 0, "saves": null, "shots_faced": null }
+  ]
+}

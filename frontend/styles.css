@@ -1,0 +1,160 @@
+:root {
+  --bg: #0b1014;
+  --panel: #131b21;
+  --panel-2: #1a242c;
+  --line: #24323c;
+  --ink: #e8eef2;
+  --ink-dim: #94a7b4;
+  --accent: #2fbf71;
+  --accent-dim: #1d7a49;
+  --warn: #e0a33e;
+  --bad: #d6402a;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ── chrome ─────────────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #141e25, #0f161b);
+  position: sticky; top: 0; z-index: 5;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand h1 { font-size: 18px; margin: 0; letter-spacing: -.2px; font-weight: 650; }
+.arrow { color: var(--accent); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.meta { color: var(--ink-dim); font-size: 13px; text-align: right; }
+
+main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 22px; margin-bottom: 22px;
+}
+.panel h2 { margin: 0 0 6px; font-size: 17px; font-weight: 650; }
+.lede { color: var(--ink-dim); margin: 0 0 18px; max-width: 62ch; }
+.count { color: var(--ink-dim); font-weight: 400; font-size: 14px; }
+
+/* ── form ───────────────────────────────────────────────── */
+form label { display: block; margin-bottom: 14px; font-size: 13px; color: var(--ink-dim); }
+form input, form textarea, form select {
+  display: block; width: 100%; margin-top: 6px; padding: 10px 12px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 8px; color: var(--ink); font: inherit;
+}
+form input:focus, form textarea:focus { outline: 2px solid var(--accent-dim); border-color: transparent; }
+form small { color: #6f8391; font-size: 12px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+button {
+  padding: 11px 20px; border-radius: 9px; font: inherit; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent;
+}
+button.primary { background: var(--accent); color: #06210f; }
+button.primary:hover { background: #38d07e; }
+button.ghost { background: transparent; color: var(--ink-dim); border-color: var(--line); }
+button.ghost:hover { color: var(--ink); border-color: var(--ink-dim); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.hint { color: #6f8391; font-size: 12px; margin: 12px 0 0; }
+
+.roster { margin: 4px 0 18px; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.roster summary { cursor: pointer; font-size: 13px; color: var(--ink-dim); }
+.roster table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12.5px; }
+.roster th { text-align: left; color: #6f8391; font-weight: 500; padding: 4px 8px; }
+.roster td { padding: 3px 8px; border-top: 1px solid var(--line); }
+.roster td input { width: 52px; padding: 4px 6px; margin: 0; text-align: center; }
+
+/* ── progress ───────────────────────────────────────────── */
+.steps { list-style: none; padding: 0; margin: 8px 0 0; }
+.steps li {
+  padding: 11px 0 11px 34px; position: relative; color: var(--ink-dim);
+  border-bottom: 1px solid var(--line);
+}
+.steps li::before {
+  content: ""; position: absolute; left: 6px; top: 15px;
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--line); background: var(--panel);
+}
+.steps li.active { color: var(--ink); }
+.steps li.active::before { border-color: var(--accent); animation: pulse 1.2s infinite; }
+.steps li.done { color: var(--ink); }
+.steps li.done::before { background: var(--accent); border-color: var(--accent); }
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px rgba(47,191,113,.16); } }
+
+/* ── team report ────────────────────────────────────────── */
+.teamhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+.formation {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 18px; font-size: 22px; font-weight: 700; letter-spacing: 1px; white-space: nowrap;
+}
+.xi-wrap { display: grid; grid-template-columns: minmax(300px, 1.05fr) 1fr; gap: 22px; align-items: start; }
+#pitch svg { width: 100%; height: auto; border-radius: 10px; display: block; }
+
+.swotgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.swot { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.swot h4 { margin: 0 0 8px; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-dim); }
+.swot ul { margin: 0; padding-left: 16px; font-size: 13px; }
+.swot li { margin-bottom: 6px; }
+.swot.s h4 { color: var(--accent); }
+.swot.w h4 { color: var(--bad); }
+.swot.o h4 { color: #4aa8e0; }
+.swot.t h4 { color: var(--warn); }
+
+.xi-left { display: flex; flex-direction: column; gap: 14px; }
+.weaknesses { display: grid; gap: 10px; }
+.weak { border-left: 3px solid var(--warn); background: var(--panel-2); padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 13.5px; }
+.weak b { color: var(--warn); text-transform: capitalize; }
+
+/* ── players ────────────────────────────────────────────── */
+.players { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+.card { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.card header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.shirt {
+  width: 34px; height: 34px; flex: none; border-radius: 8px; background: var(--panel);
+  border: 1px solid var(--line); display: grid; place-items: center; font-weight: 700; font-size: 14px;
+}
+.who { flex: 1; min-width: 0; }
+.who b { display: block; font-size: 14.5px; }
+.who span { color: var(--ink-dim); font-size: 12px; }
+.rating { font-size: 21px; font-weight: 700; }
+.r-hi { color: var(--accent); } .r-mid { color: var(--warn); } .r-lo { color: var(--bad); }
+
+.card .hm { display: block; width: 100%; background: #0f2417; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
+.stat { padding: 9px 4px; text-align: center; border-right: 1px solid var(--line); }
+.stat:last-child { border-right: 0; }
+.stat b { display: block; font-size: 14px; }
+.stat span { color: #6f8391; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; }
+
+.card .body { padding: 14px 16px; }
+.summary { font-size: 13.5px; margin: 0 0 12px; }
+.plan { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+.plan h4 { margin: 0 0 8px; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-dim); }
+.drill { font-size: 13px; margin-bottom: 10px; }
+.drill b { color: var(--accent); }
+.drill em { color: var(--ink-dim); font-style: normal; display: block; font-size: 12.5px; }
+
+.conf { font-size: 11px; padding: 2px 7px; border-radius: 20px; border: 1px solid var(--line); color: var(--ink-dim); white-space: nowrap; }
+.conf.low { color: var(--warn); border-color: var(--warn); }
+
+.mini-swot { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12.5px; }
+.mini-swot div b { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); display: block; margin-bottom: 3px; }
+.mini-swot ul { margin: 0; padding-left: 15px; }
+
+.footnote { color: #6f8391; font-size: 12px; text-align: center; padding-bottom: 30px; }
+.banner { background: #2a2113; border: 1px solid var(--warn); color: #f0cc8a; padding: 11px 15px; border-radius: 9px; font-size: 13px; margin-bottom: 18px; }
+
+@media (max-width: 860px) {
+  .xi-wrap, .grid2, .swotgrid { grid-template-columns: 1fr; }
+  .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+}

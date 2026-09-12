@@ -1,0 +1,258 @@
+{
+  "job_id": "job_abc123",
+  "status": "done",
+  "match_id": "m_001",
+  "clip": {
+    "duration_s": 60.0,
+    "fps_processed": 5
+  },
+  "players": [
+    {
+      "player_id": "p_01",
+      "track_id": 1,
+      "jersey_number": 1,
+      "id_confidence": 0.92,
+      "team": "gk",
+      "heatmap_url": "sample-data/heatmaps/p_01.svg",
+      "distance_m": 63.3,
+      "top_speed_kmh": 14.0,
+      "avg_position": {
+        "x": 6.2,
+        "y": 34.3
+      },
+      "zone_share": {
+        "def_third": 1.0,
+        "mid_third": 0.0,
+        "att_third": 0.0
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_02",
+      "track_id": 2,
+      "jersey_number": 2,
+      "id_confidence": 0.9,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_02.svg",
+      "distance_m": 171.8,
+      "top_speed_kmh": 25.1,
+      "avg_position": {
+        "x": 58.8,
+        "y": 57.4
+      },
+      "zone_share": {
+        "def_third": 0.09,
+        "mid_third": 0.64,
+        "att_third": 0.27
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_03",
+      "track_id": 3,
+      "jersey_number": null,
+      "id_confidence": 0.74,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_03.svg",
+      "distance_m": 137.6,
+      "top_speed_kmh": 26.8,
+      "avg_position": {
+        "x": 34.5,
+        "y": 41.9
+      },
+      "zone_share": {
+        "def_third": 0.52,
+        "mid_third": 0.48,
+        "att_third": 0.0
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_04",
+      "track_id": 4,
+      "jersey_number": 6,
+      "id_confidence": 0.9,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_04.svg",
+      "distance_m": 137.2,
+      "top_speed_kmh": 26.8,
+      "avg_position": {
+        "x": 33.9,
+        "y": 26.1
+      },
+      "zone_share": {
+        "def_third": 0.53,
+        "mid_third": 0.47,
+        "att_third": 0.0
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_05",
+      "track_id": 5,
+      "jersey_number": 3,
+      "id_confidence": 0.89,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_05.svg",
+      "distance_m": 153.3,
+      "top_speed_kmh": 26.2,
+      "avg_position": {
+        "x": 58.6,
+        "y": 10.5
+      },
+      "zone_share": {
+        "def_third": 0.1,
+        "mid_third": 0.63,
+        "att_third": 0.27
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_06",
+      "track_id": 6,
+      "jersey_number": null,
+      "id_confidence": 0.74,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_06.svg",
+      "distance_m": 173.1,
+      "top_speed_kmh": 27.8,
+      "avg_position": {
+        "x": 48.6,
+        "y": 33.9
+      },
+      "zone_share": {
+        "def_third": 0.15,
+        "mid_third": 0.78,
+        "att_third": 0.06
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_07",
+      "track_id": 7,
+      "jersey_number": 8,
+      "id_confidence": 0.87,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_07.svg",
+      "distance_m": 195.5,
+      "top_speed_kmh": 27.8,
+      "avg_position": {
+        "x": 62.8,
+        "y": 34.5
+      },
+      "zone_share": {
+        "def_third": 0.04,
+        "mid_third": 0.62,
+        "att_third": 0.34
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_08",
+      "track_id": 8,
+      "jersey_number": 10,
+      "id_confidence": 0.9,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_08.svg",
+      "distance_m": 206.2,
+      "top_speed_kmh": 25.4,
+      "avg_position": {
+        "x": 61.7,
+        "y": 33.7
+      },
+      "zone_share": {
+        "def_third": 0.05,
+        "mid_third": 0.65,
+        "att_third": 0.3
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_09",
+      "track_id": 9,
+      "jersey_number": null,
+      "id_confidence": 0.72,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_09.svg",
+      "distance_m": 145.1,
+      "top_speed_kmh": 24.8,
+      "avg_position": {
+        "x": 83.4,
+        "y": 34.0
+      },
+      "zone_share": {
+        "def_third": 0.0,
+        "mid_third": 0.11,
+        "att_third": 0.89
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_10",
+      "track_id": 10,
+      "jersey_number": 11,
+      "id_confidence": 0.9,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_10.svg",
+      "distance_m": 166.9,
+      "top_speed_kmh": 24.0,
+      "avg_position": {
+        "x": 76.1,
+        "y": 12.4
+      },
+      "zone_share": {
+        "def_third": 0.0,
+        "mid_third": 0.33,
+        "att_third": 0.66
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": "p_11",
+      "track_id": 11,
+      "jersey_number": null,
+      "id_confidence": 0.8,
+      "team": "home",
+      "heatmap_url": "sample-data/heatmaps/p_11.svg",
+      "distance_m": 189.2,
+      "top_speed_kmh": 26.6,
+      "avg_position": {
+        "x": 74.8,
+        "y": 55.8
+      },
+      "zone_share": {
+        "def_third": 0.0,
+        "mid_third": 0.38,
+        "att_third": 0.61
+      },
+      "minutes_tracked": 1.0
+    },
+    {
+      "player_id": null,
+      "track_id": 12,
+      "jersey_number": null,
+      "id_confidence": 0.31,
+      "team": "home",
+      "heatmap_url": null,
+      "distance_m": 141.8,
+      "top_speed_kmh": 22.4,
+      "avg_position": {
+        "x": 55.2,
+        "y": 31.6
+      },
+      "zone_share": {
+        "def_third": 0.31,
+        "mid_third": 0.52,
+        "att_third": 0.17
+      },
+      "minutes_tracked": 1.0
+    }
+  ],
+  "team_shape": {
+    "home": {
+      "compactness_m": 19.4,
+      "width_m": 46.9,
+      "line_height_m": 33.9
+    }
+  }
+}
