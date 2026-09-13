@@ -31,7 +31,7 @@
     },
     {
       "parameters": {
-        "jsCode": "/* 2 — Normalize   (BUILD_SPEC §6a)\n *\n * The coach frontend POSTs the roster.json shape. A browser only skips the CORS\n * preflight for a \"simple\" content type, so the form sends text/plain and the\n * body lands here as a string; an application/json POST (curl, Postman, the\n * Veo pull node at Rung 3) arrives already parsed. Accept both.\n *\n * ── The only two values to edit when moving off the mock ──────────────────\n * CV_SERVICE_URL  the §6b service. Swap for the Modal/RunPod endpoint at\n *                 Rung 3 — the contract does not change, so nothing else does.\n * SUPABASE_URL    the project REST root. Not a secret; the service key lives\n *                 in the n8n credential store, never in this workflow.\n */\nconst CV_SERVICE_URL = 'https://shaneesilva--footage-to-tactics-cv-web.modal.run';\nconst SUPABASE_URL = 'https://tifynfruqgkbuiyiljfb.supabase.co';\n\nconst req = $input.first().json;\nlet body = req.body ?? req;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    throw new Error('Submitted body is not valid JSON: ' + e.message);\n  }\n}\n\nconst players = Array.isArray(body.players) ? body.players : [];\nif (!players.length) {\n  throw new Error('No players in the submitted roster — there is nothing to analyse.');\n}\n\nreturn [{\n  json: {\n    match_id: body.match_id || 'm_' + Date.now().toString(36),\n    club_id: body.club_id || 'c_001',\n    opponent: body.opponent || 'Unknown opponent',\n    date: body.date || new Date().toISOString().slice(0, 10),\n    footage_url: body.footage_url || null,\n    coach_notes: body.coach_notes || '',\n    playing_style: body.playing_style || '',\n    players,\n    manual_stats: Array.isArray(body.manual_stats) ? body.manual_stats : [],\n    cv_service_url: CV_SERVICE_URL,\n    supabase_url: SUPABASE_URL,\n    submitted_at: new Date().toISOString(),\n  },\n}];\n"
+        "jsCode": "/* 2 — Normalize   (BUILD_SPEC §6a)\n *\n * The coach frontend POSTs the roster.json shape. A browser only skips the CORS\n * preflight for a \"simple\" content type, so the form sends text/plain and the\n * body lands here as a string; an application/json POST (curl, Postman, the\n * Veo pull node at Rung 3) arrives already parsed. Accept both.\n *\n * ── The only two values to edit when moving off the mock ──────────────────\n * CV_SERVICE_URL  the §6b service. Swap for the Modal/RunPod endpoint at\n *                 Rung 3 — the contract does not change, so nothing else does.\n * SUPABASE_URL    the project REST root. Not a secret; the service key lives\n *                 in the n8n credential store, never in this workflow.\n */\nconst CV_SERVICE_URL = 'https://shaneesilva--footage-to-tactics-cv-web.modal.run';\nconst SUPABASE_URL = 'https://tifynfruqgkbuiyiljfb.supabase.co';\n\nconst crypto = require('crypto');\n\n// SHA-256 of the club access code. The frontend is a static page and this\n// workflow is exported to a public repo, so neither can hold a secret: the coach\n// types the code, and only its hash lives here. A leaked hash of a 28-character\n// random code does not give the code back. Regenerate both together.\nconst CLUB_ACCESS_SHA256 = '8469c4947aed78b64d17eec23532b447ca201d972ec908f7b1e09f02bd565de4';\n\nconst req = $input.first().json;\nlet body = req.body ?? req;\nif (typeof body === 'string') {\n  try {\n    body = JSON.parse(body);\n  } catch (e) {\n    throw new Error('Submitted body is not valid JSON: ' + e.message);\n  }\n}\n\n// Every submission spends Claude calls and writes to the database, so it has to\n// come from someone holding the club's code. Compared in constant time.\nconst supplied = typeof body.access_code === 'string' ? body.access_code : '';\nconst digest = crypto.createHash('sha256').update(supplied, 'utf8').digest();\nif (!supplied || !crypto.timingSafeEqual(digest, Buffer.from(CLUB_ACCESS_SHA256, 'hex'))) {\n  throw new Error('Access code missing or incorrect — submission rejected.');\n}\n\nconst players = Array.isArray(body.players) ? body.players : [];\nif (!players.length) {\n  throw new Error('No players in the submitted roster — there is nothing to analyse.');\n}\n\nreturn [{\n  json: {\n    // Minted here, never taken from the request. The report endpoints are keyed\n    // by match_id alone, so a timestamp id (or a client-chosen one) lets anyone\n    // walk other clubs' reports — player names, ages, ratings.\n    match_id: 'm_' + crypto.randomBytes(12).toString('hex'),\n    club_id: body.club_id || 'c_001',\n    club_name: typeof body.club_name === 'string' && body.club_name.trim() ? body.club_name.trim() : null,\n    opponent: body.opponent || 'Unknown opponent',\n    date: body.date || new Date().toISOString().slice(0, 10),\n    footage_url: body.footage_url || null,\n    // Which side of the camera view the coach's team defends. The CV can split\n    // the two teams but not tell which is ours; see cv-service _home_side.\n    home_side: body.home_side === 'left' || body.home_side === 'right' ? body.home_side : null,\n    coach_notes: body.coach_notes || '',\n    playing_style: body.playing_style || '',\n    players,\n    manual_stats: Array.isArray(body.manual_stats) ? body.manual_stats : [],\n    cv_service_url: CV_SERVICE_URL,\n    supabase_url: SUPABASE_URL,\n    submitted_at: new Date().toISOString(),\n  },\n}];\n"
       },
       "id": "a2ec3049-589f-4162-a32a-d17c735c0e8d",
       "name": "2 Normalize",
@@ -74,7 +74,7 @@
         "url": "={{ $json.cv_service_url }}/process",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ match_id: $json.match_id, clip_url: $json.footage_url, roster: { match_id: $json.match_id, club_id: $json.club_id, players: $json.players } }) }}",
+        "jsonBody": "={{ JSON.stringify({ match_id: $json.match_id, clip_url: $json.footage_url, home_side: $json.home_side, roster: { match_id: $json.match_id, club_id: $json.club_id, players: $json.players } }) }}",
         "options": {
           "timeout": 20000
         }
@@ -467,7 +467,7 @@
           "parameters": [
             {
               "name": "Prefer",
-              "value": "resolution=merge-duplicates,return=minimal"
+              "value": "={{ $('2 Normalize').first().json.club_name ? 'resolution=merge-duplicates,return=minimal' : 'resolution=ignore-duplicates,return=minimal' }}"
             },
             {
               "name": "Content-Type",
@@ -477,7 +477,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ id: $('6 Build profile').first().json.club_id, name: $('6 Build profile').first().json.club_id }) }}",
+        "jsonBody": "={{ JSON.stringify({ id: $('6 Build profile').first().json.club_id, name: $('2 Normalize').first().json.club_name || $('6 Build profile').first().json.club_id }) }}",
         "options": {
           "timeout": 20000
         }
@@ -509,7 +509,7 @@
           "parameters": [
             {
               "name": "Prefer",
-              "value": "resolution=merge-duplicates,return=minimal"
+              "value": "resolution=ignore-duplicates,return=minimal"
             },
             {
               "name": "Content-Type",
@@ -993,6 +993,20 @@
         -1936,
         1232
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "/* 10c — Record whether this match was actually stored.\n *\n * Every Supabase write (7a–7d, 10a, 10b) continues on error, which is right —\n * a database outage must not cost the coach their report — but it also means a\n * failed write looks exactly like a successful one. That is how reports went\n * unsaved on every run without anyone noticing. This node reads each write's\n * output and stamps the result onto the cached report, so node 12 serves it and\n * the frontend can say plainly when a report exists only in n8n's cache.\n */\nconst matchId = $('11 Format report').first().json.match_id;\nconst WRITES = ['7a Upsert club', '7b Upsert players', '7c Upsert match',\n                '7d Upsert player stats', '10a Save player reports', '10b Save team report'];\n\nconst failures = [];\nfor (const name of WRITES) {\n  let items;\n  try {\n    items = $(name).all();\n  } catch (e) {\n    failures.push(`${name}: did not run`);\n    continue;\n  }\n  for (const item of items) {\n    const err = item.json && item.json.error;\n    if (err) failures.push(`${name}: ${err.description || err.message || 'write failed'}`);\n  }\n}\n\nconst stored = failures.length === 0;\nconst store = $getWorkflowStaticData('global');\nif (store.reports && store.reports[matchId]) {\n  store.reports[matchId].stored = stored;\n  store.reports[matchId].storage_errors = failures;\n}\n\nreturn [{ json: { match_id: matchId, stored, storage_errors: failures } }];\n"
+      },
+      "id": "5c2cd0c8-e039-41d4-9e21-99c95af08894",
+      "name": "10c Record storage result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        400
+      ],
+      "notes": "Stamps stored / storage_errors onto the cached report"
     }
   ],
   "connections": {
@@ -1369,6 +1383,17 @@
         [
           {
             "node": "8b Ask Claude - team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10b Save team report": {
+      "main": [
+        [
+          {
+            "node": "10c Record storage result",
             "type": "main",
             "index": 0
           }
