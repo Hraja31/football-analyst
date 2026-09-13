@@ -9,6 +9,8 @@ has no analyst, no budget, and no time.
 
 **Hackathon track:** Best Overall / End-to-End Integration.
 
+**Demo video:** [`demo/footballanalyst.mp4`](demo/footballanalyst.mp4) (2:19, walks through a live run from submission to report)
+
 ---
 
 ## Architecture
