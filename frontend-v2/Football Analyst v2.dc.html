@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Footage to Tactics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+  html, body { margin:0; padding:0; background:#FBFBF8; color:#16191A; font-family:"Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+  * { box-sizing:border-box; }
+  a { color:#2C6E49; text-decoration:none; }
+  a:hover { color:#1E4D34; }
+  input, textarea, select, button { font-family:inherit; color:inherit; }
+  input:focus, textarea:focus { outline:2px solid rgba(44,110,73,.45); outline-offset:1px; }
+  ::selection { background:#D8E7DD; }
+  @keyframes fa-pulse { 0%,100% { opacity:.3; } 50% { opacity:1; } }
+  @keyframes fa-rise { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:none;} }
+  @keyframes fa-spin { from { transform:rotateZ(0deg); } to { transform:rotateZ(360deg); } }
+  @keyframes fa-counter { from { transform:rotateZ(0deg); } to { transform:rotateZ(-360deg); } }
+</style>
+</helmet>
+
+<sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#FBFBF8">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:24px 40px">
+    <div></div>
+    <button onClick="{{ goDashboard }}" style="padding:10px 16px;border:1px solid #E0E0D8;background:#fff;color:#16191A;border-radius:8px;font-size:14px;cursor:pointer;min-height:42px;white-space:nowrap" style-hover="border-color:#2C6E49;color:#2C6E49">View a report</button>
+  </header>
+
+  <main style="flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:56px;align-items:center;max-width:1180px;width:100%;margin:0 auto;padding:40px 40px 80px">
+    <div style="animation:fa-rise .5s ease both;min-width:0">
+      <div style="font-size:13px;letter-spacing:.02em;color:#6E7570">For clubs with a camera and no analyst</div>
+      <h1 style="font-family:Archivo,sans-serif;font-weight:600;font-size:clamp(40px,5.4vw,62px);line-height:1.03;letter-spacing:-.035em;margin:18px 0 0;text-wrap:balance">Every player tracked,<br>from one match clip.</h1>
+      <p style="max-width:440px;margin:22px 0 0;font-size:17px;line-height:1.65;color:#5C6360;text-wrap:pretty">Link a match clip. You get tracked heatmaps for every player, a recommended shape and best eleven, and a training plan for each name on the team sheet.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:32px">
+        <button onClick="{{ goUpload }}" style="padding:15px 26px;background:#2C6E49;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;min-height:50px;white-space:nowrap" style-hover="background:#1E4D34">Analyse a match</button>
+        <button onClick="{{ goMatches }}" style="padding:15px 26px;background:transparent;color:#16191A;border:1px solid #E0E0D8;border-radius:8px;font-size:15px;cursor:pointer;min-height:50px;white-space:nowrap" style-hover="border-color:#2C6E49">Past matches</button>
+      </div>
+    </div>
+    <div style="min-width:0">
+      <div onPointerDown="{{ onSpinStart }}" onPointerMove="{{ onSpinMove }}" onPointerUp="{{ onSpinEnd }}" onPointerLeave="{{ onSpinEnd }}" style="position:relative;width:100%;aspect-ratio:1/1;overflow:hidden;perspective:900px;perspective-origin:50% 42%;cursor:{{ spinCursor }};touch-action:none">
+        <div style="position:absolute;left:10%;right:10%;bottom:22%;height:18%;border-radius:50%;background:radial-gradient(50% 50% at 50% 50%, rgba(28,52,36,.28), rgba(28,52,36,0) 70%);filter:blur(3px)"></div>
+        <div style="position:absolute;inset:0;transform-style:preserve-3d;transform:translateY(-1%) rotateX(58deg) rotateZ({{ yaw }}deg)">
+         <div style="position:absolute;inset:0;transform-style:preserve-3d;animation:fa-spin 120s linear infinite;animation-play-state:{{ spinState }}">
+          <div style="position:absolute;left:8%;right:8%;top:28%;bottom:28%;border-radius:10px;background:#4A3A26;transform:translateZ(-44px)"></div>
+          <div style="position:absolute;left:8%;right:8%;top:28%;bottom:28%;border-radius:10px;background:#123020;transform:translateZ(-36px)"></div>
+          <div style="position:absolute;left:8%;right:8%;top:28%;bottom:28%;border-radius:10px;background:#16371F;transform:translateZ(-29px)"></div>
+          <div style="position:absolute;left:8%;right:8%;top:28%;bottom:28%;border-radius:10px;background:#1A3E25;transform:translateZ(-23px)"></div>
+          <div style="position:absolute;left:8%;right:8%;top:28%;bottom:28%;border-radius:10px;background:#1F472B;transform:translateZ(-17px)"></div>
+          <div style="position:absolute;left:8%;right:8%;top:28%;bottom:28%;border-radius:10px;background:#245030;transform:translateZ(-11px)"></div>
+          <div style="position:absolute;left:8%;right:8%;top:28%;bottom:28%;border-radius:10px;background:#295836;transform:translateZ(-6px)"></div>
+          <div style="position:absolute;left:8%;right:8%;top:28%;bottom:28%;border-radius:10px;background:#2D603B;box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)"></div>
+          <div style="position:absolute;left:11%;right:11%;top:31.5%;bottom:31.5%;transform-style:preserve-3d;background:repeating-linear-gradient(90deg,#2F6E47 0 8.33%,#367251 8.33% 16.66%);box-shadow:inset 0 0 70px rgba(12,30,19,.40), inset 0 2px 0 rgba(255,255,255,.14)">
+            <svg viewBox="0 0 1050 680" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+              <g fill="none" stroke="rgba(255,255,255,.62)" stroke-width="4">
+                <rect x="16" y="16" width="1018" height="648"></rect>
+                <line x1="525" y1="16" x2="525" y2="664"></line>
+                <circle cx="525" cy="340" r="92"></circle>
+                <rect x="16" y="170" width="148" height="340"></rect>
+                <rect x="886" y="170" width="148" height="340"></rect>
+                <rect x="16" y="256" width="54" height="168"></rect>
+                <rect x="980" y="256" width="54" height="168"></rect>
+              </g>
+              <g fill="rgba(255,255,255,.7)">
+                <circle cx="525" cy="340" r="7"></circle>
+                <circle cx="126" cy="340" r="6"></circle>
+                <circle cx="924" cy="340" r="6"></circle>
+              </g>
+            </svg>
+            <div style="position:absolute;left:0;top:44.5%;height:11%;width:24px;transform-origin:left center;transform:rotateY(-90deg);border:2.5px solid rgba(255,255,255,.92);border-left:none;background:rgba(255,255,255,.10)"></div>
+            <div style="position:absolute;right:0;top:44.5%;height:11%;width:24px;transform-origin:right center;transform:rotateY(90deg);border:2.5px solid rgba(255,255,255,.92);border-right:none;background:rgba(255,255,255,.10)"></div>
+            <sc-for list="{{ spreadNodes }}" as="p" hint-placeholder-count="11">
+              <div style="position:absolute;left:{{ p.left }}%;top:{{ p.top }}%;width:0;height:0;transform-style:preserve-3d">
+                <div style="transform-style:preserve-3d;animation:fa-counter 120s linear infinite;animation-play-state:{{ spinState }}">
+                  <div style="position:absolute;left:-13px;top:-5px;width:26px;height:10px;border-radius:50%;background:rgba(10,26,16,.42);filter:blur(1.5px)"></div>
+                  <button onClick="{{ p.open }}" style="position:absolute;left:0;top:0;transform-origin:0 100%;transform:translate(-50%,-100%) rotateZ({{ negYaw }}deg) rotateX(-58deg);transform-style:preserve-3d;background:transparent;border:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center">
+                    <span style="width:27px;height:27px;border-radius:50%;background:#FBFBF8;border:2px solid #1E4D34;color:#16191A;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px;box-shadow:0 4px 8px rgba(10,26,16,.45)">{{ p.num }}</span>
+                    <span style="width:2px;height:22px;background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,.15))"></span>
+                  </button>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+         </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <section style="max-width:1180px;width:100%;margin:0 auto;padding:0 40px 64px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:28px;padding-top:26px;border-top:1px solid #E6E6DF">
+      <sc-for list="{{ heroFacts }}" as="f" hint-placeholder-count="3">
+        <div>
+          <div style="font-family:Archivo,sans-serif;font-weight:600;font-size:26px;letter-spacing:-.02em;color:#2C6E49">{{ f.n }}</div>
+          <div style="margin-top:5px;font-size:13.5px;line-height:1.45;color:#6E7570">{{ f.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+</div>
+</sc-if>
+
+<sc-if value="{{ isUpload }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:#FBFBF8">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 40px;border-bottom:1px solid #E6E6DF">
+    <button onClick="{{ goLanding }}" style="background:transparent;border:none;color:#6E7570;font-size:14px;cursor:pointer;padding:6px 0" style-hover="color:#16191A">Back</button>
+    <span style="font-size:13px;color:#8A908C">Step 1 of 2</span>
+  </header>
+
+  <main style="max-width:620px;margin:0 auto;padding:56px 24px 90px;animation:fa-rise .4s ease both">
+    <h2 style="font-family:Archivo,sans-serif;font-weight:600;font-size:34px;line-height:1.08;letter-spacing:-.03em;margin:0">New match analysis</h2>
+    <p style="margin:12px 0 0;font-size:16px;line-height:1.6;color:#5C6360">Paste a direct link to the clip. Tracking starts when you press Start.</p>
+    <div style="height:28px"></div>
+
+    <input value="{{ linkValue }}" onChange="{{ onLink }}" placeholder="https://…/clip.mp4" style="width:100%;padding:14px 15px;background:#fff;border:1px solid #E0E0D8;border-radius:8px;font-size:15px;min-height:50px">
+    <div style="margin-top:8px;font-size:12.5px;line-height:1.5;color:#8A908C">A direct link to the video file, not a YouTube or Veo page. Wide view with the pitch markings visible; gentle pans are fine, cuts and replays are not.</div>
+
+    <sc-if value="{{ hasSource }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:12px;margin-top:16px;padding:13px 15px;background:#F1F6F2;border:1px solid #D8E7DD;border-radius:8px">
+        <span style="width:7px;height:7px;border-radius:50%;background:#2C6E49;flex:none"></span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ sourceName }}</div>
+          <div style="font-size:12px;color:#6E7570;margin-top:2px">{{ sourceMeta }}</div>
+        </div>
+        <button onClick="{{ clearSource }}" style="background:transparent;border:none;color:#8A908C;font-size:13px;cursor:pointer;padding:8px" style-hover="color:#16191A">Remove</button>
+      </div>
+    </sc-if>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:26px">
+      <label style="display:block">
+        <span style="display:block;font-size:13px;color:#6E7570;margin-bottom:7px">Opponent</span>
+        <input value="{{ opponent }}" onChange="{{ onOpponent }}" style="width:100%;padding:13px 14px;background:#fff;border:1px solid #E0E0D8;border-radius:8px;font-size:15px;min-height:48px">
+      </label>
+      <label style="display:block">
+        <span style="display:block;font-size:13px;color:#6E7570;margin-bottom:7px">Match date</span>
+        <input type="date" value="{{ matchDate }}" onChange="{{ onDate }}" style="width:100%;padding:13px 14px;background:#fff;border:1px solid #E0E0D8;border-radius:8px;font-size:15px;min-height:48px">
+      </label>
+    </div>
+
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:14px">
+      <label style="display:block">
+        <span style="display:block;font-size:13px;color:#6E7570;margin-bottom:7px">Club access code</span>
+        <input type="password" autoComplete="off" value="{{ accessCode }}" onChange="{{ onAccessCode }}" style="width:100%;padding:13px 14px;background:#fff;border:1px solid #E0E0D8;border-radius:8px;font-size:15px;min-height:48px">
+      </label>
+      <label style="display:block">
+        <span style="display:block;font-size:13px;color:#6E7570;margin-bottom:7px">Your team defends</span>
+        <select value="{{ homeSide }}" onChange="{{ onHomeSide }}" style="width:100%;padding:13px 14px;background:#fff;border:1px solid #E0E0D8;border-radius:8px;font-size:15px;min-height:48px">
+          <option value="left">The left goal, as the camera sees it</option>
+          <option value="right">The right goal, as the camera sees it</option>
+        </select>
+      </label>
+    </div>
+    <label style="display:block;margin-top:14px">
+      <span style="display:block;font-size:13px;color:#6E7570;margin-bottom:7px">What you saw from the touchline</span>
+      <textarea rows="3" value="{{ notes }}" onChange="{{ onNotes }}" style="width:100%;padding:13px 14px;background:#fff;border:1px solid #E0E0D8;border-radius:8px;font-size:15px;line-height:1.55;resize:vertical"></textarea>
+    </label>
+
+    <div style="margin-top:30px;padding-top:26px;border-top:1px solid #E6E6DF">
+      <h3 style="font-family:Archivo,sans-serif;font-weight:600;font-size:19px;letter-spacing:-.02em;margin:0">Match stats</h3>
+      <p style="margin:8px 0 0;font-size:14.5px;line-height:1.55;color:#6E7570;max-width:520px">Goals, assists and tackles are not read from video. Enter what you recorded, and leave a cell blank to count it as zero.</p>
+
+      <div style="margin-top:20px;border:1px solid #E6E6DF;border-radius:10px;overflow:auto;background:#fff">
+        <div style="min-width:900px">
+          <div style="display:grid;grid-template-columns:170px repeat(11,minmax(58px,1fr));border-bottom:1px solid #E6E6DF">
+            <sc-for list="{{ statHead }}" as="h" hint-placeholder-count="7">
+              <div style="padding:11px 12px;font-size:12px;color:#8A908C;text-align:{{ h.align }}">{{ h.label }}</div>
+            </sc-for>
+          </div>
+          <sc-for list="{{ statRows }}" as="r" hint-placeholder-count="11">
+            <div style="display:grid;grid-template-columns:170px repeat(11,minmax(58px,1fr));border-bottom:1px solid #F0F0EA">
+              <div style="padding:9px 12px;display:flex;align-items:center;gap:10px">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#A0A6A1;width:18px">{{ r.num }}</span>
+                <span style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.name }}</span>
+              </div>
+              <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="6">
+                <input defaultValue="{{ c.value }}" data-pid="{{ c.pid }}" data-k="{{ c.k }}" onChange="{{ onStat }}" inputMode="numeric" style="width:100%;min-height:44px;padding:9px 10px;background:transparent;border:none;border-left:1px solid #F0F0EA;font-family:'IBM Plex Mono',monospace;font-size:13.5px;text-align:center">
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <sc-if value="{{ hasError }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:18px;padding:13px 15px;background:#FBEFEC;border:1px solid #F0D2CA;border-radius:8px;font-size:14px;line-height:1.5;color:#8A3522">{{ errorText }}</div>
+    </sc-if>
+    <button onClick="{{ startRun }}" disabled="{{ startDisabled }}" style="width:100%;margin-top:24px;padding:16px 24px;background:{{ startBg }};color:{{ startFg }};border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:{{ startCursor }};min-height:54px">Start analysis</button>
+    <div style="margin-top:11px;text-align:center;font-size:12.5px;color:#8A908C">Takes about five minutes for a 30 second clip.</div>
+  </main>
+</div>
+</sc-if>
+
+<sc-if value="{{ isProcessing }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;background:#FBFBF8">
+  <header style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 40px;border-bottom:1px solid #E6E6DF">
+    <span style="font-family:Archivo,sans-serif;font-weight:600;font-size:15px;letter-spacing:-.01em">{{ matchTitle }}</span>
+    <span style="font-size:13px;color:#8A908C">Step 2 of 2</span>
+  </header>
+
+  <main style="max-width:820px;margin:0 auto;padding:48px 24px 90px">
+    <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px">
+      <div>
+        <h2 style="font-family:Archivo,sans-serif;font-weight:600;font-size:clamp(24px,3.4vw,30px);line-height:1.12;letter-spacing:-.025em;margin:0">{{ stageTitle }}</h2>
+        <p style="margin:9px 0 0;font-size:14.5px;color:#6E7570">{{ stageHint }}</p>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:34px;letter-spacing:-.02em;color:#2C6E49">{{ pctLabel }}</div>
+    </div>
+
+    <div style="position:relative;margin-top:24px;border:1px solid #DDE3DD;border-radius:10px;overflow:hidden;background:#EDF2EE;height:120px">
+      <div style="position:absolute;inset:0;width:{{ pct }}%;background:#D3E5D9;transition:width .65s linear"></div>
+      <svg viewBox="0 0 1050 340" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+        <g fill="none" stroke="#FFFFFF" stroke-width="2.5">
+          <rect x="14" y="14" width="1022" height="312"></rect>
+          <line x1="525" y1="14" x2="525" y2="326"></line>
+          <circle cx="525" cy="170" r="56"></circle>
+          <rect x="14" y="80" width="110" height="180"></rect>
+          <rect x="926" y="80" width="110" height="180"></rect>
+        </g>
+      </svg>
+      <div style="position:absolute;top:0;bottom:0;left:{{ pct }}%;width:2px;background:#2C6E49;transition:left .65s linear"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:18px;margin-top:20px">
+      <sc-for list="{{ stages }}" as="s" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:2px solid {{ s.bar }}">
+          <span style="font-size:13px;line-height:1.4;color:{{ s.fg }};animation:{{ s.anim }}">{{ s.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ runDone }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ goDashboard }}" style="width:100%;margin-top:24px;padding:16px 24px;background:#2C6E49;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:500;cursor:pointer;min-height:54px;animation:fa-rise .3s ease both" style-hover="background:#1E4D34">Open the report</button>
+    </sc-if>
+
+  </main>
+</div>
+</sc-if>
+
+<sc-if value="{{ isShell }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;min-height:100vh;align-items:stretch;background:#FBFBF8">
+  <aside style="flex:none;width:212px;border-right:1px solid #E6E6DF;padding:24px 14px;display:flex;flex-direction:column;gap:28px">
+    <button onClick="{{ goLanding }}" style="display:flex;align-items:center;gap:10px;background:transparent;border:none;padding:4px 8px;cursor:pointer;text-align:left">
+      <div style="width:9px;height:9px;background:#2C6E49;border-radius:50%;flex:none"></div>
+      <div style="min-width:0">
+        <div style="font-family:Archivo,sans-serif;font-weight:600;font-size:13.5px;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ clubName }}</div>
+        <div style="font-size:11.5px;color:#8A908C;margin-top:2px">Season 26/27</div>
+      </div>
+    </button>
+
+    <nav style="display:flex;flex-direction:column;gap:1px">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <button onClick="{{ n.go }}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:none;border-radius:7px;background:{{ n.bg }};color:{{ n.fg }};font-size:14px;font-weight:{{ n.weight }};text-align:left;cursor:pointer;min-height:42px" style-hover="background:#F2F2EC">
+          <span>{{ n.label }}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#A0A6A1">{{ n.badge }}</span>
+        </button>
+      </sc-for>
+    </nav>
+
+    <div style="margin-top:auto">
+      <button onClick="{{ goUpload }}" style="width:100%;padding:12px 14px;background:#2C6E49;color:#fff;border:none;border-radius:7px;font-size:13.5px;font-weight:500;cursor:pointer;min-height:44px" style-hover="background:#1E4D34">New analysis</button>
+      <div style="font-size:11.5px;line-height:1.5;color:#A0A6A1;padding:12px 4px 0">{{ runNote }}</div>
+    </div>
+  </aside>
+
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <header style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:18px 34px;border-bottom:1px solid #E6E6DF">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="white-space:nowrap;font-family:Archivo,sans-serif;font-weight:600;font-size:15.5px;letter-spacing:-.015em">{{ viewTitle }}</span>
+        <span style="white-space:nowrap;font-size:13.5px;color:#8A908C">{{ matchTitle }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <sc-if value="{{ showConfidence }}" hint-placeholder-val="{{ true }}">
+          <span style="display:flex;align-items:center;gap:7px;white-space:nowrap;font-size:12.5px;color:#6E7570">
+            <span style="width:6px;height:6px;border-radius:50%;background:#2C6E49"></span>
+            {{ trackedLabel }}
+          </span>
+        </sc-if>
+        <button onClick="{{ exportReport }}" style="padding:9px 14px;border:1px solid #E0E0D8;background:#fff;border-radius:7px;font-size:13px;cursor:pointer;min-height:38px" style-hover="border-color:#2C6E49;color:#2C6E49">Export</button>
+      </div>
+    </header>
+
+    <div style="flex:1;padding:30px 34px 70px">
+
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1120px;display:flex;flex-direction:column;gap:40px;animation:fa-rise .35s ease both">
+        <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:40px;align-items:start">
+          <div style="min-width:0">
+            <div style="font-size:13px;color:#8A908C">Recommended shape</div>
+            <div style="font-family:Archivo,sans-serif;font-weight:600;font-size:clamp(56px,7vw,78px);line-height:.95;letter-spacing:-.045em;color:#2C6E49;margin-top:8px">{{ formation }}</div>
+            <p style="margin:20px 0 0;font-size:15.5px;line-height:1.65;color:#4A514D;text-wrap:pretty">{{ styleNote }}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:28px;margin-top:26px;padding-top:22px;border-top:1px solid #E6E6DF">
+              <sc-for list="{{ shapeMetrics }}" as="m" hint-placeholder-count="3">
+                <div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:19px;letter-spacing:-.02em">{{ m.value }}</div>
+                  <div style="white-space:nowrap;font-size:12.5px;color:#8A908C;margin-top:4px">{{ m.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="min-width:0">
+            <div style="position:relative;width:100%;aspect-ratio:105/68;border-radius:12px;overflow:hidden;background:#EDF2EE;border:1px solid #DDE3DD">
+              <svg viewBox="0 0 1050 680" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+                <g fill="none" stroke="#FFFFFF" stroke-width="3">
+                  <rect x="12" y="12" width="1026" height="656"></rect>
+                  <line x1="525" y1="12" x2="525" y2="668"></line>
+                  <circle cx="525" cy="340" r="96"></circle>
+                  <rect x="12" y="170" width="150" height="340"></rect>
+                  <rect x="888" y="170" width="150" height="340"></rect>
+                </g>
+              </svg>
+              <sc-for list="{{ xiNodes }}" as="p" hint-placeholder-count="11">
+                <button onClick="{{ p.open }}" style="position:absolute;left:{{ p.left }}%;top:{{ p.top }}%;transform:translate(-50%,-50%);background:transparent;border:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px">
+                  <span style="width:28px;height:28px;border-radius:50%;background:#fff;border:1.5px solid #2C6E49;color:#16191A;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px">{{ p.num }}</span>
+                  <span style="font-size:10px;color:#4A514D;white-space:nowrap">{{ p.last }}</span>
+                </button>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;flex-wrap:wrap">
+              <span style="font-size:12.5px;color:#8A908C">Best eleven on tracked average positions</span>
+              <button onClick="{{ goPitch }}" style="background:transparent;border:none;color:#2C6E49;font-size:12.5px;cursor:pointer;padding:4px" style-hover="color:#1E4D34">Pitch map</button>
+            </div>
+          </div>
+        </section>
+
+        <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px">
+          <div style="min-width:0">
+            <h3 style="font-family:Archivo,sans-serif;font-weight:600;font-size:15px;letter-spacing:-.01em;margin:0 0 14px">Match clip</h3>
+            <div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;border:1px solid #E6E6DF;background:#EEF1EC">
+              <image-slot id="report-clip" shape="rect" placeholder="Drop a frame from the clip"></image-slot>
+            </div>
+            <div style="margin-top:10px;font-size:12.5px;color:#8A908C">{{ clipNote }}</div>
+          </div>
+          <div style="min-width:0">
+            <h3 style="font-family:Archivo,sans-serif;font-weight:600;font-size:15px;letter-spacing:-.01em;margin:0 0 14px">Top performers</h3>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ topThree }}" as="p" hint-placeholder-count="3">
+                <button onClick="{{ p.open }}" style="display:flex;align-items:center;gap:12px;padding:13px 4px;background:transparent;border:none;border-bottom:1px solid #EDEDE6;cursor:pointer;text-align:left;min-height:52px" style-hover="background:#F6F6F1">
+                  <span style="width:24px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:#A0A6A1">{{ p.num }}</span>
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</span>
+                    <span style="display:block;font-size:12px;color:#8A908C;margin-top:2px">{{ p.pos }}</span>
+                  </span>
+                  <span style="font-family:'IBM Plex Mono',monospace;font-size:16px;color:{{ p.color }}">{{ p.rating }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h3 style="font-family:Archivo,sans-serif;font-weight:600;font-size:15px;letter-spacing:-.01em;margin:0 0 16px">Problem areas</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px">
+            <sc-for list="{{ posWeak }}" as="w" hint-placeholder-count="2">
+              <div style="padding-top:16px;border-top:2px solid #C4622F">
+                <div style="font-size:13px;font-weight:500;color:#16191A">{{ w.area }}</div>
+                <div style="margin-top:8px;font-size:14px;line-height:1.6;color:#5C6360;text-wrap:pretty">{{ w.issue }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section>
+          <h3 style="font-family:Archivo,sans-serif;font-weight:600;font-size:15px;letter-spacing:-.01em;margin:0 0 16px">Team assessment</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px">
+            <sc-for list="{{ teamSwot }}" as="s" hint-placeholder-count="4">
+              <div style="padding-top:14px;border-top:1px solid #E6E6DF">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  <span style="width:6px;height:6px;border-radius:50%;background:{{ s.color }}"></span>
+                  <span style="font-size:13px;font-weight:500">{{ s.title }}</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <sc-for list="{{ s.items }}" as="i" hint-placeholder-count="3">
+                    <div style="font-size:13.5px;line-height:1.6;color:#5C6360;text-wrap:pretty">{{ i }}</div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <sc-if value="{{ showConfidence }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:13px;line-height:1.65;color:#8A908C;max-width:760px;padding-top:20px;border-top:1px solid #E6E6DF;text-wrap:pretty">{{ confidenceNote }}</div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isPitch }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1120px;display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:32px;animation:fa-rise .35s ease both">
+        <section style="grid-column:span 2;min-width:0">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
+            <div style="display:flex;gap:4px;padding:3px;background:#F2F2EC;border-radius:8px">
+              <sc-for list="{{ pitchModes }}" as="m" hint-placeholder-count="2">
+                <button onClick="{{ m.go }}" style="padding:9px 16px;border:none;border-radius:6px;background:{{ m.bg }};color:{{ m.fg }};font-size:13.5px;cursor:pointer;min-height:38px">{{ m.label }}</button>
+              </sc-for>
+            </div>
+            <span style="font-size:12.5px;color:#8A908C">{{ pitchCaption }}</span>
+          </div>
+
+          <div style="position:relative;width:100%;aspect-ratio:105/68;border-radius:12px;overflow:hidden;background:{{ pitchBg }};border:1px solid #DDE3DD">
+            <svg viewBox="0 0 1050 680" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+              <g fill="none" stroke="{{ pitchLine }}" stroke-width="3">
+                <rect x="12" y="12" width="1026" height="656"></rect>
+                <line x1="525" y1="12" x2="525" y2="668"></line>
+                <circle cx="525" cy="340" r="96"></circle>
+                <rect x="12" y="170" width="150" height="340"></rect>
+                <rect x="888" y="170" width="150" height="340"></rect>
+              </g>
+            </svg>
+            <sc-if value="{{ heatmapOn }}" hint-placeholder-val="{{ false }}">
+              {{ heatmapImg }}
+            </sc-if>
+            <sc-for list="{{ trackNodes }}" as="p" hint-placeholder-count="11">
+              <button onClick="{{ p.open }}" style="position:absolute;left:{{ p.left }}%;top:{{ p.top }}%;transform:translate(-50%,-50%);background:transparent;border:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;opacity:{{ p.opacity }}">
+                <span style="width:28px;height:28px;border-radius:50%;background:#fff;border:1.5px solid #2C6E49;color:#16191A;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px">{{ p.num }}</span>
+                <span style="font-size:10px;color:{{ p.labelFg }};white-space:nowrap">{{ p.last }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-wrap:wrap;gap:32px;margin-top:20px;padding-top:18px;border-top:1px solid #E6E6DF">
+            <sc-for list="{{ shapeMetrics }}" as="m" hint-placeholder-count="3">
+              <div style="min-width:150px">
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:20px;letter-spacing:-.02em">{{ m.value }}</div>
+                <div style="white-space:nowrap;font-size:12.5px;color:#6E7570;margin-top:4px">{{ m.label }}</div>
+                <div style="font-size:12px;color:#A0A6A1;margin-top:4px;line-height:1.45;max-width:210px">{{ m.note }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <aside style="min-width:0">
+          <h3 style="font-family:Archivo,sans-serif;font-weight:600;font-size:15px;letter-spacing:-.01em;margin:0 0 4px">Tracked players</h3>
+          <p style="margin:0 0 12px;font-size:12.5px;color:#8A908C">Select a name to see their heatmap.</p>
+          <div style="display:flex;flex-direction:column;max-height:540px;overflow:auto">
+            <sc-for list="{{ trackList }}" as="p" hint-placeholder-count="11">
+              <button onClick="{{ p.select }}" style="display:flex;align-items:center;gap:10px;padding:11px 10px;border:none;border-bottom:1px solid #EDEDE6;border-radius:6px;background:{{ p.bg }};cursor:pointer;text-align:left;min-height:46px" style-hover="background:#F2F2EC">
+                <span style="width:22px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#A0A6A1">{{ p.num }}</span>
+                <span style="flex:1;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</span>
+                <sc-if value="{{ showConfidence }}" hint-placeholder-val="{{ true }}">
+                  <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{ p.confFg }}">{{ p.conf }}</span>
+                </sc-if>
+              </button>
+            </sc-for>
+          </div>
+        </aside>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlayers }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1120px;animation:fa-rise .35s ease both">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:#E6E6DF;border:1px solid #E6E6DF;border-radius:12px;overflow:hidden">
+          <sc-for list="{{ players }}" as="p" hint-placeholder-count="11">
+            <button onClick="{{ p.open }}" style="display:flex;flex-direction:column;gap:14px;padding:20px;border:none;background:#fff;cursor:pointer;text-align:left" style-hover="background:#F6F6F1">
+              <span style="display:flex;align-items:center;gap:12px">
+                <span style="flex:1;min-width:0">
+                  <span style="display:block;font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</span>
+                  <span style="display:block;font-size:12px;color:#8A908C;margin-top:3px">{{ p.meta }}</span>
+                </span>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:20px;letter-spacing:-.02em;color:{{ p.color }}">{{ p.rating }}</span>
+              </span>
+              <span style="display:flex;flex-wrap:wrap;gap:18px">
+                <sc-for list="{{ p.tiles }}" as="t" hint-placeholder-count="4">
+                  <span style="display:block">
+                    <span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:13px">{{ t.v }}</span>
+                    <span style="display:block;font-size:11px;color:#A0A6A1;margin-top:2px">{{ t.l }}</span>
+                  </span>
+                </sc-for>
+              </span>
+              <span style="font-size:12.5px;line-height:1.55;color:#6E7570;text-wrap:pretty">{{ p.short }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isPlayer }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:980px;animation:fa-rise .35s ease both">
+        <button onClick="{{ goPlayers }}" style="background:transparent;border:none;color:#6E7570;font-size:13.5px;cursor:pointer;padding:0 0 20px" style-hover="color:#16191A">All players</button>
+
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px;padding-bottom:24px;border-bottom:1px solid #E6E6DF">
+          <div style="flex:1;min-width:200px">
+            <h2 style="font-family:Archivo,sans-serif;font-weight:600;font-size:34px;line-height:1.05;letter-spacing:-.03em;margin:0">{{ sel.name }}</h2>
+            <div style="margin-top:8px;font-size:13.5px;color:#8A908C">{{ sel.meta }}</div>
+          </div>
+          <sc-if value="{{ showConfidence }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:12.5px;color:{{ sel.confFg }}">{{ sel.confLabel }}</div>
+          </sc-if>
+          <div style="text-align:right">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:38px;line-height:1;letter-spacing:-.03em;color:{{ sel.color }}">{{ sel.rating }}</div>
+            <div style="font-size:11.5px;color:#A0A6A1;margin-top:5px">Match rating</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:34px;padding:28px 0">
+          <div style="min-width:0">
+            <p style="margin:0;font-size:15.5px;line-height:1.7;color:#4A514D;text-wrap:pretty">{{ sel.summary }}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:26px;margin-top:24px">
+              <sc-for list="{{ sel.tiles }}" as="t" hint-placeholder-count="6">
+                <div>
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:-.02em">{{ t.v }}</div>
+                  <div style="font-size:11.5px;color:#A0A6A1;margin-top:4px">{{ t.l }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:26px">
+              <div style="font-size:12.5px;color:#8A908C;margin-bottom:9px">Time by third</div>
+              <div style="display:flex;height:28px;border-radius:6px;overflow:hidden;border:1px solid #E6E6DF">
+                <sc-for list="{{ sel.zones }}" as="z" hint-placeholder-count="3">
+                  <div style="width:{{ z.pct }}%;background:{{ z.color }};display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#2B322D;overflow:hidden">{{ z.label }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="min-width:0">
+            <div style="font-size:12.5px;color:#8A908C;margin-bottom:9px">Tracked heatmap</div>
+            <div style="position:relative;width:100%;aspect-ratio:105/68;border-radius:10px;overflow:hidden;background:#12241A;border:1px solid #E6E6DF">
+              {{ selHeatmapImg }}
+            </div>
+          </div>
+        </div>
+
+        <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:24px;padding-top:24px;border-top:1px solid #E6E6DF">
+          <sc-for list="{{ sel.swot }}" as="s" hint-placeholder-count="4">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:11px">
+                <span style="width:6px;height:6px;border-radius:50%;background:{{ s.color }}"></span>
+                <span style="font-size:13px;font-weight:500">{{ s.title }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <sc-for list="{{ s.items }}" as="i" hint-placeholder-count="2">
+                  <div style="font-size:13px;line-height:1.6;color:#5C6360;text-wrap:pretty">{{ i }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </section>
+
+        <section style="margin-top:34px;padding-top:24px;border-top:1px solid #E6E6DF">
+          <h3 style="font-family:Archivo,sans-serif;font-weight:600;font-size:16px;letter-spacing:-.015em;margin:0 0 4px">This week on the training ground</h3>
+          <p style="margin:0 0 18px;font-size:13.5px;color:#8A908C">Drills drawn from what this match showed.</p>
+          <div style="display:flex;flex-direction:column;gap:20px">
+            <sc-for list="{{ sel.plan }}" as="d" hint-placeholder-count="2">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;padding-top:16px;border-top:1px solid #EDEDE6">
+                <div>
+                  <div style="font-size:13px;font-weight:500;color:#2C6E49">{{ d.focus }}</div>
+                  <div style="margin-top:7px;font-size:14.5px;line-height:1.6;text-wrap:pretty">{{ d.drill }}</div>
+                </div>
+                <div style="font-size:13px;line-height:1.65;color:#8A908C;text-wrap:pretty">{{ d.why }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isMatches }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1000px;animation:fa-rise .35s ease both">
+        <div style="border:1px solid #E6E6DF;border-radius:12px;overflow:hidden;background:#fff">
+          <sc-for list="{{ matches }}" as="m" hint-placeholder-count="5">
+            <button onClick="{{ m.open }}" style="width:100%;display:grid;grid-template-columns:minmax(0,2fr) repeat(auto-fit,minmax(90px,1fr));gap:16px;align-items:center;padding:18px 20px;background:#fff;border:none;border-bottom:1px solid #EDEDE6;cursor:pointer;text-align:left" style-hover="background:#F6F6F1">
+              <span style="min-width:0">
+                <span style="display:block;font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.opponent }}</span>
+                <span style="display:block;font-size:12.5px;color:#8A908C;margin-top:3px">{{ m.date }}</span>
+              </span>
+              <span style="display:block">
+                <span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:14.5px;color:{{ m.bar }}">{{ m.score }}</span>
+                <span style="display:block;font-size:11px;color:#A0A6A1;margin-top:3px">Result</span>
+              </span>
+              <span style="display:block">
+                <span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:14.5px">{{ m.shape }}</span>
+                <span style="display:block;font-size:11px;color:#A0A6A1;margin-top:3px">Shape</span>
+              </span>
+              <span style="display:block">
+                <span style="display:block;font-family:'IBM Plex Mono',monospace;font-size:14.5px">{{ m.tracked }}</span>
+                <span style="display:block;font-size:11px;color:#A0A6A1;margin-top:3px">Tracked</span>
+              </span>
+              <span style="display:block;text-align:right;font-size:12.5px;color:{{ m.tagFg }}">{{ m.tag }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="margin-top:14px;font-size:12.5px;color:#A0A6A1">Reports stay for the season. Clips are read from your link, not stored.</div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:680px;display:flex;flex-direction:column;gap:36px;animation:fa-rise .35s ease both">
+        <sc-for list="{{ settingsGroups }}" as="g" hint-placeholder-count="3">
+          <section>
+            <h3 style="font-family:Archivo,sans-serif;font-weight:600;font-size:15px;letter-spacing:-.01em;margin:0 0 3px">{{ g.title }}</h3>
+            <p style="margin:0 0 14px;font-size:13px;color:#8A908C">{{ g.note }}</p>
+            <div style="border-top:1px solid #E6E6DF">
+              <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+                <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #EDEDE6">
+                  <div style="min-width:0">
+                    <div style="font-size:14px">{{ r.label }}</div>
+                    <div style="font-size:12.5px;color:#A0A6A1;margin-top:3px">{{ r.hint }}</div>
+                  </div>
+                  <div style="flex:none;min-width:120px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#5C6360;text-align:right;overflow-wrap:anywhere">{{ r.value }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </sc-for>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;clubName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Northfield AFC&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showConfidence&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Report&quot;}}">
+class Component extends DCLogic {
+  state = {
+    view: "landing",
+    selected: "p_08",
+    link: "",
+    file: null,
+    opponent: "Riverside FC",
+    date: "2026-09-13",
+    notes: "We conceded twice down our left in the first half. I want us pressing higher but we looked leggy after 60 minutes. Osei was isolated up top all game.",
+    pct: 0,
+    stats: {},
+    pitchMode: "positions",
+    yaw: -16,
+    dragging: false,
+    lastX: 0,
+    accessCode: (() => { try { return localStorage.getItem("f2t.access_code") || ""; } catch (e) { return ""; } })(),
+    homeSide: "left",
+    error: "",
+    matchId: null,
+    live: null,
+  };
+
+
+  roster = [
+    ["p_01","T. Wallace",1,"GK","Right",29],
+    ["p_02","R. Boyd",2,"RB","Right",24],
+    ["p_03","M. Ferreira",5,"CB","Right",31],
+    ["p_04","K. Adeyemi",6,"CB","Left",26],
+    ["p_05","S. Doyle",3,"LB","Left",22],
+    ["p_06","J. Nkemelu",4,"CDM","Right",28],
+    ["p_07","A. Whitcombe",8,"CM","Right",25],
+    ["p_08","L. Marchetti",10,"CM","Left",23],
+    ["p_09","D. Osei",9,"ST","Right",24],
+    ["p_10","C. Vasquez",11,"LW","Right",21],
+    ["p_11","H. Bramall",7,"RW","Right",27],
+  ];
+
+  manual = {
+    p_01:{goals:0,assists:0,shots:0,sot:0,tk:0,tkw:0,y:0,saves:4},
+    p_02:{goals:0,assists:1,shots:1,sot:0,tk:5,tkw:3,y:1,saves:null},
+    p_03:{goals:0,assists:0,shots:1,sot:1,tk:6,tkw:5,y:0,saves:null},
+    p_04:{goals:1,assists:0,shots:2,sot:1,tk:4,tkw:4,y:0,saves:null},
+    p_05:{goals:0,assists:0,shots:0,sot:0,tk:7,tkw:2,y:1,saves:null},
+    p_06:{goals:0,assists:0,shots:1,sot:0,tk:8,tkw:6,y:0,saves:null},
+    p_07:{goals:0,assists:1,shots:2,sot:1,tk:4,tkw:3,y:0,saves:null},
+    p_08:{goals:1,assists:1,shots:3,sot:2,tk:2,tkw:1,y:0,saves:null},
+    p_09:{goals:1,assists:0,shots:5,sot:2,tk:1,tkw:0,y:0,saves:null},
+    p_10:{goals:0,assists:0,shots:2,sot:1,tk:2,tkw:1,y:0,saves:null},
+    p_11:{goals:0,assists:1,shots:3,sot:2,tk:3,tkw:2,y:0,saves:null},
+  };
+
+  manualExtra = {
+    p_01:{fouls:0,red:0,faced:6}, p_02:{fouls:2,red:0,faced:null}, p_03:{fouls:1,red:0,faced:null},
+    p_04:{fouls:0,red:0,faced:null}, p_05:{fouls:3,red:0,faced:null}, p_06:{fouls:2,red:0,faced:null},
+    p_07:{fouls:1,red:0,faced:null}, p_08:{fouls:0,red:0,faced:null}, p_09:{fouls:1,red:0,faced:null},
+    p_10:{fouls:0,red:0,faced:null}, p_11:{fouls:1,red:0,faced:null},
+  };
+
+  cv = {
+    p_01:{conf:0.92,dist:63.3,spd:14.0,x:6.2,y:34.3,z:[1,0,0]},
+    p_02:{conf:0.90,dist:171.8,spd:25.1,x:58.8,y:57.4,z:[0.09,0.64,0.27]},
+    p_03:{conf:0.74,dist:137.6,spd:26.8,x:34.5,y:41.9,z:[0.52,0.48,0]},
+    p_04:{conf:0.90,dist:137.2,spd:26.8,x:33.9,y:26.1,z:[0.53,0.47,0]},
+    p_05:{conf:0.89,dist:153.3,spd:26.2,x:58.6,y:10.5,z:[0.10,0.63,0.27]},
+    p_06:{conf:0.74,dist:173.1,spd:27.8,x:48.6,y:33.9,z:[0.15,0.78,0.06]},
+    p_07:{conf:0.87,dist:195.5,spd:27.8,x:62.8,y:34.5,z:[0.04,0.62,0.34]},
+    p_08:{conf:0.90,dist:206.2,spd:25.4,x:61.7,y:33.7,z:[0.05,0.65,0.30]},
+    p_09:{conf:0.72,dist:145.1,spd:24.8,x:83.4,y:34.0,z:[0,0.11,0.89]},
+    p_10:{conf:0.90,dist:166.9,spd:24.0,x:76.1,y:12.4,z:[0,0.33,0.66]},
+    p_11:{conf:0.80,dist:189.2,spd:26.6,x:74.8,y:55.8,z:[0,0.38,0.61]},
+  };
+
+  report = {
+    p_01:{r:7.1,s:"Four saves from six shots faced. Positioning was sound and his distribution kept the side building from the back as instructed.",sw:[["67 percent save rate","Stayed high enough to sweep behind a mid block"],["Limited involvement in the build up phase"],["Can start the high press by playing earlier into the pivot"],["A higher defensive line will expose him to more balls in behind"]],p:[["Sweeper keeper positioning","Back line coordination with the line eight metres higher, keeper starting on the eighteen yard line","The coach wants a high press, which changes his starting position"]]},
+    p_02:{r:7.0,s:"An assist and the most advanced average position of the back four. Defensively busy at three of five tackles won, though the booking came from a recovery challenge.",sw:[["One assist","A genuine attacking threat from right back"],["Three of five tackles won","Caught upfield on transitions"],["Already the template for the press the coach wants"],["Card risk from late recovery challenges"]],p:[["Recovery running","Repeated thirty metre recovery sprints from an advanced position","He commits forward often and the fouls come from arriving late"]]},
+    p_03:{r:7.6,s:"Five of six tackles won and a shot on target. The more conservative of the two centre backs and the reason the centre held.",sw:[["83 percent tackle success","Reliable in the duel"],["Identity confidence of 0.74, so some spatial figures are less certain"],["Can step into midfield when the line pushes up"],["At 31, recovery pace behind a higher line"]],p:[["Defending the high line","Offside line stepping drills on a pressing trigger","The intended press asks him to defend more space behind"]]},
+    p_04:{r:7.8,s:"A goal and a perfect four from four in the tackle. The best defensive performance on the day.",sw:[["100 percent tackle success","Scored, and an aerial threat from set pieces"],["Almost no attacking third presence outside set plays"],["Left footed, so he can be the build up outlet on the weak side"],["Carrying more defensive load while the left flank stays exposed"]],p:[["Left side build up","Third man combinations with the left back and left central midfielder","His left foot is the tool to relieve pressure on the problem flank"]]},
+    p_05:{r:5.4,s:"Two of seven tackles won, three fouls and a booking, on the flank where both goals were conceded. This is structural as much as individual, because he received very little cover.",sw:[["Held an advanced average position despite the pressure"],["29 percent tackle success","Three fouls and a yellow card","Beaten in isolation repeatedly"],["At 22 the defensive one against one is very coachable"],["Opponents will target this flank again","Card accumulation"]],p:[["Defensive one against one","Isolated full back against a winger, forcing the attacker inside onto cover","Two of seven tackles won on the flank where both goals started"],["Cover and shuffle","Back four shifting with the near centre back covering","He was left isolated, so part of the fix is collective"]]},
+    p_06:{r:7.7,s:"Eight tackles, six won, the highest defensive volume in the side. Screened the back four exactly as a pivot should.",sw:[["75 percent tackle success on the highest volume","Disciplined central positioning"],["Minimal attacking third presence"],["Can shift left to cover the problem flank"],["Two fouls, and pressing higher raises that risk"]],p:[["Press triggers","Pivot stepping to press on a back pass cue","He is the player who makes a high press safe"]]},
+    p_07:{r:7.0,s:"An assist and three of four tackles won. Covered 195 metres in the tracked minute, among the highest in the side.",sw:[["One assist","High work rate across the full width"],["One shot on target from two attempts"],["Positioned to support the striker far more directly"],["Workload, given the side fades after the hour"]],p:[["Arriving in the box","Late runs into the area from midfield","Osei is isolated and midfield arrival is the cheapest fix"]]},
+    p_08:{r:8.0,s:"A goal, an assist and two of three shots on target. The most productive attacking output of the match.",sw:[["Goal and assist","67 percent shot accuracy","Left foot gives the midfield balance"],["One of two tackles won, so limited defensive contribution"],["The creative reference point for the whole side"],["Defensive work has to rise if the press goes higher"]],p:[["Pressing from the front of midfield","Counter press within five seconds of a turnover","The press only works if the creator presses too"]]},
+    p_09:{r:6.3,s:"Scored once from five shots, but only two were on target, and his heat sits in a narrow central band ahead of the midfield with very little support.",sw:[["Scored","Highest shot volume in the side"],["20 percent conversion from five shots","Average position twenty metres ahead of the nearest midfielder"],["Better service would lift conversion without changing his game"],["Continued isolation will suppress his output regardless of finishing"]],p:[["Finishing under fatigue","Shooting repetitions after a twenty metre sprint, both feet","Two of five on target from good positions"],["Dropping to link","Third man combinations dropping between the lines","Isolation is the root cause and he can solve some of it himself"]]},
+    p_10:{r:6.0,s:"Two shots, one on target, no goal contribution. Played on the flank where the side conceded, and his tracking back is part of the fix.",sw:[["Held width, with heat tight to the left touchline"],["No goal contribution","Limited defensive support for Doyle"],["At 21 there is room to add end product"],["Defensive expectation rises while the left flank keeps leaking"]],p:[["Defensive tracking","Winger recovery runs to form a temporary back five","Both goals came down his flank and the winger is half the solution"]]},
+    p_11:{r:7.2,s:"An assist and two of three shots on target. Covered the most ground of any player in the tracked minute at 189 metres.",sw:[["One assist","67 percent shot accuracy","Highest distance covered"],["Identity confidence of 0.80, so spatial figures carry some uncertainty"],["Pairs well with an overlapping Boyd on the right"],["High workload against a side that tires after the hour"]],p:[["Crossing under pressure","Cut back delivery from the byline with a defender engaged","He reaches the byline often, and the final ball decides the output"]]},
+  };
+
+  xi = [["p_01","GK"],["p_02","RB"],["p_03","CB"],["p_04","CB"],["p_05","LB"],["p_06","CDM"],["p_07","CM"],["p_08","CM"],["p_11","RW"],["p_09","ST"],["p_10","LW"]];
+
+  teamSwotData = [
+    ["Strengths","#2C6E49",["Central duel winning is excellent. Ferreira and Adeyemi won nine of ten tackles between them.","Nkemelu screened the back four properly, with six of eight tackles won and the highest defensive third involvement of any midfielder.","Team width of 46.9 metres shows the side genuinely stretches the pitch in possession."]],
+    ["Weaknesses","#B4472F",["The left side is the clear vulnerability. Doyle won two of seven tackles and gave away three fouls, which matches your account of both goals conceded.","Three goals from twenty shots with only ten on target is wasteful for the volume created.","Osei's heat sits in a narrow central band of the attacking third, consistent with him being isolated."]],
+    ["Opportunities","#3D7EA6",["A line height of 33.9 metres is deeper than a high press needs. Pushing up five to eight metres would compress play and support the press you want.","Both full backs are averaging positions past halfway, so the platform for a press already exists on the right."]],
+    ["Threats","#A9741F",["The one against one exposure on the left will be targeted again by anyone who reviews this match.","You report the side tiring after the hour. A higher press without rotation will make that worse."]],
+  ];
+
+  posWeakData = [
+    ["Left flank","Doyle was beaten repeatedly in isolation, winning two of seven tackles with three fouls. He needs either Vasquez tracking back or the pivot shifting to that side."],
+    ["Support for the striker","Osei's average position sits well ahead of both central midfielders, which leaves a gap through the final third."],
+  ];
+
+  stageDefs = [
+    [12, "Clip received"],
+    [48, "Tracking every player"],
+    [70, "Building heatmaps"],
+    [82, "Merging your stats"],
+    [100, "Writing the report"],
+  ];
+
+  matchList = [
+    ["Riverside FC", "13 Sep 2026", "2 - 2", "4-3-3", "11 of 11", "Latest", "#16191A", true],
+    ["Kingsmead Rovers", "30 Aug 2026", "2 - 1", "4-2-3-1", "11 of 11", "Ready", "#2C6E49", false],
+    ["Broadfield Town", "23 Aug 2026", "1 - 1", "4-3-3", "10 of 11", "Ready", "#16191A", false],
+    ["Calder Vale", "16 Aug 2026", "0 - 3", "4-4-2", "11 of 11", "Ready", "#B4472F", false],
+    ["Ashton Park", "9 Aug 2026", "3 - 0", "4-3-3", "9 of 11", "Manual only", "#2C6E49", false],
+  ];
+
+  // The live pipeline: n8n webhooks in front of the CV service and Claude.
+  API = {
+    submit: "https://shaneesilva.app.n8n.cloud/webhook/match-submit",
+    report: "https://shaneesilva.app.n8n.cloud/webhook/report",
+  };
+  EXPECTED_MS = 330000;            // a real 30 s clip: about five minutes end to end
+  POLL_MS = 5000;
+  POLL_LIMIT_MS = 12 * 60 * 1000;
+
+  componentDidMount() {
+    // ?match_id=… reopens a report: the link a coach keeps, and the demo fallback.
+    const q = new URLSearchParams(location.search);
+    const id = q.get("match_id");
+    // view= and player= land on a specific screen of a finished report.
+    this.landOn = { view: q.get("view") || "dashboard", player: q.get("player") };
+    if (id) this.follow(id, Date.now(), true);
+  }
+
+  componentWillUnmount() { clearInterval(this.timer); clearTimeout(this.pollT); }
+
+  // Progress is an estimate against the typical run time. It stops at 95% until
+  // the report actually exists, so the bar never claims a finish it has not seen.
+  tick = () => {
+    if (this.state.live) return;
+    const pct = Math.min(95, Math.round(((Date.now() - this.startedAt) / this.EXPECTED_MS) * 95));
+    if (pct !== this.state.pct) this.setState({ pct });
+  };
+
+  go = (view) => () => this.setState({ view });
+
+  num = (pid, k) => { const v = this.statOf(pid, k); return v === "" ? null : Number(v); };
+
+  startRun = async () => {
+    const s = this.state;
+    const link = s.link.trim();
+    const code = s.accessCode.trim();
+    if (!/^https?:\/\//i.test(link)) return this.setState({ error: "Paste a direct http(s) link to the video file." });
+    if (!code) return this.setState({ error: "Enter the club access code." });
+    try { localStorage.setItem("f2t.access_code", code); } catch (e) { /* storage blocked */ }
+    this.setState({ error: "" });
+
+    const body = {
+      access_code: code,
+      home_side: s.homeSide,
+      footage_url: link,
+      opponent: s.opponent,
+      date: s.date,
+      coach_notes: s.notes,
+      club_name: this.props.clubName || undefined,
+      players: this.roster.map(([id, name, num, pos, foot, age]) => ({
+        player_id: id, name, jersey_number: num, position: pos, strong_foot: foot[0], age })),
+      manual_stats: this.roster.map(([id]) => ({
+        player_id: id,
+        goals: this.num(id, "goals"), assists: this.num(id, "assists"),
+        shots: this.num(id, "shots"), shots_on_target: this.num(id, "sot"),
+        tackles: this.num(id, "tk"), tackles_won: this.num(id, "tkw"),
+        fouls: this.num(id, "fouls"), yellow: this.num(id, "y"), red: this.num(id, "red"),
+        saves: this.num(id, "saves"), shots_faced: this.num(id, "faced"),
+      })),
+    };
+
+    let res;
+    try {
+      // text/plain: the one body type a browser sends to n8n Cloud without a CORS
+      // preflight, which the webhook does not answer. The body is still JSON.
+      res = await fetch(this.API.submit, { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify(body) });
+    } catch (e) {
+      return this.setState({ error: "Could not reach the pipeline (" + e.message + ")." });
+    }
+    if (!res.ok) {
+      return this.setState({ error: "Submission rejected (HTTP " + res.status + "). Check the access code; if it is correct, the pipeline itself failed." });
+    }
+    const { match_id } = await res.json();
+    try { history.replaceState(null, "", "?match_id=" + encodeURIComponent(match_id)); } catch (e) { /* file:// */ }
+    this.follow(match_id, Date.now(), false);
+  };
+
+  follow = (matchId, startedAt, reopening) => {
+    clearInterval(this.timer); clearTimeout(this.pollT);
+    this.startedAt = startedAt;
+    this.setState({ view: "processing", pct: 0, matchId, error: "", live: null });
+    this.timer = setInterval(this.tick, 1000);
+    const poll = async () => {
+      if (Date.now() - startedAt > this.POLL_LIMIT_MS) {
+        clearInterval(this.timer);
+        return this.setState({ error: "Still running after 12 minutes. The report keeps building; reopen this page with the same link later." });
+      }
+      try {
+        const r = await fetch(this.API.report + "?match_id=" + encodeURIComponent(matchId));
+        if (r.ok) {
+          const d = await r.json();
+          if (d.status === "done" && d.team) {
+            clearInterval(this.timer);
+            this.applyReport(d);
+            // A finished report reopened from a link goes straight to it.
+            const land = reopening ? this.landOn || { view: "dashboard" } : null;
+            return this.setState({ pct: 100, live: d, view: land ? land.view : this.state.view,
+              ...(land && land.player ? { selected: land.player, pitchMode: "heat" } : {}) });
+          }
+          if (d.status === "error") {
+            clearInterval(this.timer);
+            return this.setState({ error: d.error || "That report could not be found." });
+          }
+        }
+      } catch (e) { /* transient network error: keep polling */ }
+      this.pollT = setTimeout(poll, this.POLL_MS);
+    };
+    poll();
+  };
+
+  // Live report JSON -> the shapes the screens already render. Everything the
+  // mockup hard-coded is replaced, so no sample text survives into a real report.
+  applyReport(d) {
+    const cvBy = Object.fromEntries(((d.cv && d.cv.players) || []).filter((p) => p.player_id).map((p) => [p.player_id, p]));
+    const repBy = Object.fromEntries((d.players || []).map((p) => [p.player_id, p]));
+    this.cv = {};
+    this.report = {};
+    this.roster.forEach(([id]) => {
+      const c = cvBy[id];
+      this.cv[id] = c ? {
+        conf: c.id_confidence ?? null, dist: c.distance_m ?? null, spd: c.top_speed_kmh ?? null,
+        x: c.avg_position ? c.avg_position.x : null, y: c.avg_position ? c.avg_position.y : null,
+        z: c.zone_share ? [c.zone_share.def_third || 0, c.zone_share.mid_third || 0, c.zone_share.att_third || 0] : null,
+        heat: c.heatmap_url || null,
+      } : { conf: null, dist: null, spd: null, x: null, y: null, z: null, heat: null };
+      const p = repBy[id];
+      if (p) {
+        const sw = p.swot || {};
+        this.report[id] = {
+          r: Number(p.rating) || 0, s: p.summary || "",
+          sw: [sw.strengths || [], sw.weaknesses || [], sw.opportunities || [], sw.threats || []],
+          p: (p.training_plan || []).map((t) => [t.focus, t.drill, t.why]),
+        };
+      }
+    });
+    const t = d.team || {};
+    const known = new Set(this.roster.map((r) => r[0]));
+    this.xi = (t.best_xi || []).filter((x) => known.has(x.player_id)).map((x) => [x.player_id, x.position]);
+    const ts = t.team_swot || {};
+    this.teamSwotData = [["Strengths", "#2C6E49", ts.strengths || []], ["Weaknesses", "#B4472F", ts.weaknesses || []],
+                         ["Opportunities", "#3D7EA6", ts.opportunities || []], ["Threats", "#A9741F", ts.threats || []]];
+    this.posWeakData = (t.position_weaknesses || []).map((w) => [w.area, w.issue]);
+    this.styleText = t.playing_style_note || "";
+    this.formationText = t.formation || "";
+    this.shape = (d.cv && d.cv.team_shape && d.cv.team_shape.home) || null;
+    if (d.opponent) this.setState({ opponent: d.opponent });
+    if (d.date) this.setState({ date: d.date });
+  }
+
+  // Where a player sits on the pitch graphic when tracking has no position for them.
+  ROLE_XY = { GK:[6,34], RB:[30,58], LB:[30,10], CB:[25,34], RCB:[25,44], LCB:[25,24], CDM:[42,34], DM:[42,34],
+              CM:[55,34], RCM:[55,44], LCM:[55,24], CAM:[68,34], AM:[68,34], RM:[62,58], LM:[62,10],
+              RW:[82,56], LW:[82,12], ST:[92,34], CF:[88,34] };
+
+  fmtDist(v) { return v == null ? "—" : Math.round(v) + "m"; }
+  fmtSpd(v) { return v == null ? "—" : Number(v).toFixed(1); }
+  fmtConf(v) { return v == null ? "—" : Math.round(v * 100) + "%"; }
+
+  heatEl(p) {
+    const src = this.state.live ? p.heat : "sample-data/heatmaps/" + p.id + ".svg";
+    if (!src) {
+      return React.createElement("div", { style: { position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#E8EEE9", fontSize: "14px", padding: "24px", textAlign: "center" } },
+        "No heatmap: this player was not tracked in the clip.");
+    }
+    return React.createElement("img", { src, alt: "Tracked heatmap", style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "fill" } });
+  }
+
+  confText(all) {
+    const d = this.state.live || {};
+    const parts = [];
+    if (d.degraded) parts.push("Computer vision did not complete for this match" + (d.cv_error ? " (" + d.cv_error + ")" : "") + ", so spatial figures are missing and the analysis rests on your stats and notes.");
+    const confs = all.map((p) => p.conf).filter((v) => v != null);
+    const read = confs.filter((v) => v >= 0.9).length;
+    const anchored = confs.length - read;
+    const untracked = all.length - confs.length;
+    if (confs.length) parts.push(read + " player" + (read === 1 ? " was" : "s were") + " identified from a shirt number and " + anchored + " from the team sheet order, which is a positional estimate and is shown at lower confidence.");
+    if (untracked) parts.push(untracked + " had no usable track, so their figures come from manual stats only.");
+    parts.push("Distances and top speeds are conservative: movement that tracking noise makes physically implausible is discarded rather than counted.");
+    if (d.stored === false) parts.push("This report was not saved to the database and exists only in the pipeline's short-term cache.");
+    return parts.join(" ");
+  }
+
+  rateColor(r) { return r >= 7.5 ? "#2C6E49" : r >= 6.5 ? "#16191A" : r >= 6 ? "#A9741F" : "#B4472F"; }
+
+  entered = {};
+
+  statOf(pid, k) {
+    const key = pid + "." + k;
+    if (this.entered[key] !== undefined) return this.entered[key];
+    const extra = { fouls: "fouls", red: "red", faced: "faced" }[k];
+    const v = extra ? (this.manualExtra[pid] || {})[extra] : this.manual[pid][k];
+    return v == null ? "" : String(v);
+  }
+
+  merged() {
+    return this.roster.map(([id, name, num, pos, foot, age]) => {
+      const c = this.cv[id] || {}, m = this.manual[id];
+      const r = this.report[id] || { r: 0, s: "No analysis was returned for this player.", sw: [[], [], [], []], p: [] };
+      const fb = this.ROLE_XY[pos] || [52, 34];
+      return { id, name, num, pos, foot, age, ...c, tracked: c.x != null,
+               x: c.x != null ? c.x : fb[0], y: c.y != null ? c.y : fb[1],
+               rating: r.r, summary: r.s, swot: r.sw, plan: r.p, m };
+    });
+  }
+
+  nodes(list, min) {
+    const MIN = min || 11;
+    const n = list.map((p) => ({ ...p, px: (p.x / 105) * 100, py: (1 - p.y / 68) * 100 }));
+    for (let pass = 0; pass < 60; pass++) {
+      let moved = false;
+      for (let i = 0; i < n.length; i++) for (let j = i + 1; j < n.length; j++) {
+        const a = n[i], b = n[j];
+        let dx = b.px - a.px, dy = (b.py - a.py) * 0.62, d = Math.hypot(dx, dy);
+        if (d >= MIN) continue;
+        if (d < 0.01) { dx = i % 2 ? 1 : -1; dy = 0.6; d = 1; }
+        const push = (MIN - d) / 2;
+        a.px -= (dx / d) * push; a.py -= (dy / d) * push * 1.6;
+        b.px += (dx / d) * push; b.py += (dy / d) * push * 1.6;
+        moved = true;
+      }
+      n.forEach((k) => { k.px = Math.max(5, Math.min(95, k.px)); k.py = Math.max(8, Math.min(90, k.py)); });
+      if (!moved) break;
+    }
+    return n;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const view = s.view;
+    const all = this.merged();
+    const byId = Object.fromEntries(all.map((p) => [p.id, p]));
+    const swotTitles = ["Strengths", "Weaknesses", "Opportunities", "Threats"];
+    const swotColors = ["#2C6E49", "#B4472F", "#3D7EA6", "#A9741F"];
+    const last = (n) => n.split(" ").pop();
+    const sel = byId[s.selected] || all[0];
+    const hasSource = Boolean(s.link.trim());
+    const live = Boolean(s.live);
+    const trackedCount = all.filter((p) => p.tracked).length;
+    const stageIdx = this.stageDefs.findIndex((d) => s.pct < d[0]);
+    const active = stageIdx === -1 ? this.stageDefs.length - 1 : stageIdx;
+    const done = s.pct >= 100;
+    const heat = s.pitchMode === "heat";
+
+    const xiIds = this.xi.map(([id]) => id).filter((id) => byId[id]);
+    const spreadNodes = this.nodes(xiIds.map((id) => byId[id]), 23).map((p) => ({
+      left: p.px.toFixed(1), top: p.py.toFixed(1), num: p.num, last: last(p.name),
+      open: () => this.setState({ view: "player", selected: p.id }),
+    }));
+
+    const xiNodes = this.nodes(xiIds.map((id) => byId[id])).map((p) => ({
+      left: p.px.toFixed(1), top: p.py.toFixed(1), num: p.num, last: last(p.name),
+      open: () => this.setState({ view: "player", selected: p.id }),
+    }));
+
+    const trackNodes = this.nodes(all.filter((p) => p.tracked)).map((p) => ({
+      left: p.px.toFixed(1), top: p.py.toFixed(1), num: p.num, last: last(p.name),
+      opacity: heat && p.id !== s.selected ? "0.3" : "1",
+      labelFg: heat ? "#E8EEE9" : "#4A514D",
+      open: () => this.setState({ view: "player", selected: p.id }),
+    }));
+
+    const navDefs = [["dashboard", "Report", ""], ["pitch", "Pitch map", ""], ["players", "Players", "11"], ["matches", "Matches", live ? "1" : "5"], ["settings", "Settings", ""]];
+    const titles = { dashboard: "Match report", pitch: "Pitch map", players: "Players", player: "Player report", matches: "Matches", settings: "Settings" };
+    const onPlayers = view === "players" || view === "player";
+
+    return {
+      isLanding: view === "landing",
+      isUpload: view === "upload",
+      isProcessing: view === "processing",
+      isShell: ["dashboard", "pitch", "players", "player", "matches", "settings"].includes(view),
+      isDashboard: view === "dashboard", isPitch: view === "pitch", isPlayers: view === "players",
+      isPlayer: view === "player", isMatches: view === "matches", isSettings: view === "settings",
+      clubName: this.props.clubName ?? "Northfield AFC",
+      showConfidence: this.props.showConfidence ?? true,
+      viewTitle: titles[view] || "",
+      matchTitle: "vs " + s.opponent + ", " + s.date.split("-").reverse().join("/"),
+      runNote: live && s.live.generated_at ? "Report generated " + new Date(s.live.generated_at).toLocaleString() : "Sample report, not a live run.",
+      clipNote: live && s.live.cv && s.live.cv.clip
+        ? s.live.cv.clip.duration_s + " seconds of footage, tracked at " + s.live.cv.clip.fps_processed + " frames per second."
+        : live ? "No tracking data for this match." : "Sample: sixty seconds of footage, tracked at five frames per second.",
+      trackedLabel: live ? trackedCount + " of " + all.length + " tracked" : "Sample report",
+      noop: () => {},
+      // The workflow renders a self-contained report page (node 11b): the thing a coach forwards.
+      exportReport: () => { if (s.matchId) window.open("https://shaneesilva.app.n8n.cloud/webhook/report-html?match_id=" + encodeURIComponent(s.matchId), "_blank", "noopener"); },
+      goLanding: this.go("landing"), goUpload: this.go("upload"), goDashboard: this.go("dashboard"),
+      goPitch: this.go("pitch"), goPlayers: this.go("players"), goMatches: this.go("matches"),
+
+      yaw: s.yaw.toFixed(1),
+      negYaw: (-s.yaw).toFixed(1),
+      spinCursor: s.dragging ? "grabbing" : "grab",
+      spinState: s.dragging ? "paused" : "running",
+      onSpinStart: (e) => this.setState({ dragging: true, lastX: e.clientX }),
+      onSpinMove: (e) => {
+        if (!this.state.dragging) return;
+        const dx = e.clientX - this.state.lastX;
+        this.setState((st) => ({ yaw: st.yaw + dx * 0.35, lastX: e.clientX }));
+      },
+      onSpinEnd: () => { if (this.state.dragging) this.setState({ dragging: false }); },
+
+      heroFacts: [
+        { n: "11", label: "Heatmaps from one clip" },
+        { n: "5 min", label: "Clip to finished report" },
+        { n: "5 fps", label: "Tracking rate through the clip" },
+      ],
+
+      nav: navDefs.map(([id, label, badge]) => {
+        const on = view === id || (id === "players" && onPlayers);
+        return { label, badge, go: this.go(id), bg: on ? "#EFF4F0" : "transparent", fg: on ? "#2C6E49" : "#4A514D", weight: on ? "500" : "400" };
+      }),
+
+      linkValue: s.link, opponent: s.opponent, matchDate: s.date, notes: s.notes,
+      hasSource,
+      sourceName: s.link,
+      sourceMeta: "The pipeline downloads the video from this link",
+      dropBorder: s.dragging ? "#2C6E49" : "#DCDCD3",
+      dropBg: s.dragging ? "#F1F6F2" : "#FFFFFF",
+      startDisabled: !hasSource,
+      startBg: hasSource ? "#2C6E49" : "#EDEDE6",
+      startFg: hasSource ? "#FFFFFF" : "#A0A6A1",
+      startCursor: hasSource ? "pointer" : "not-allowed",
+      fileRef: (el) => { this.input = el; },
+      pickFile: () => this.input && this.input.click(),
+      onFilePicked: (e) => { const f = e.target.files[0]; if (f) this.setState({ file: f, dragging: false }); },
+      onDragOver: (e) => { e.preventDefault(); if (!s.dragging) this.setState({ dragging: true }); },
+      onDragLeave: () => this.setState({ dragging: false }),
+      onDrop: (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; this.setState({ dragging: false, file: f || null }); },
+      clearSource: (e) => { e.stopPropagation(); this.setState({ file: null, link: "" }); },
+      onLink: (e) => this.setState({ link: e.target.value }),
+      onOpponent: (e) => this.setState({ opponent: e.target.value }),
+      onDate: (e) => this.setState({ date: e.target.value }),
+      onNotes: (e) => this.setState({ notes: e.target.value }),
+      startRun: this.startRun,
+      accessCode: s.accessCode,
+      onAccessCode: (e) => this.setState({ accessCode: e.target.value }),
+      homeSide: s.homeSide,
+      onHomeSide: (e) => this.setState({ homeSide: e.target.value }),
+      hasError: Boolean(s.error),
+      errorText: s.error,
+
+      pct: s.pct, pctLabel: s.pct + "%",
+      stageTitle: s.error ? "Needs attention" : done ? "Report ready" : this.stageDefs[active][1],
+      stageHint: s.error ? s.error : done
+        ? trackedCount + " of " + all.length + " players tracked."
+        : "About five minutes for a 30 second clip. You can leave and reopen this page with the same link.",
+      runDone: done && live,
+      stages: this.stageDefs.map((d, i) => {
+        const isDone = s.pct >= d[0], isActive = i === active && !done;
+        return {
+          label: d[1],
+          bar: isDone ? "#2C6E49" : isActive ? "#8FB89F" : "#E6E6DF",
+          fg: isDone || isActive ? "#16191A" : "#A0A6A1",
+          anim: isActive ? "fa-pulse 1.4s ease-in-out infinite" : "none",
+        };
+      }),
+      statHead: [{ label: "Player", align: "left" }, ...["Goals", "Assists", "Shots", "On target", "Tackles", "Won", "Fouls", "Yellow", "Red", "Saves", "Faced"].map((l) => ({ label: l, align: "center" }))],
+      statRows: all.map((p) => ({
+        num: p.num, name: p.name,
+        cells: ["goals", "assists", "shots", "sot", "tk", "tkw", "fouls", "y", "red", "saves", "faced"].map((k) => ({ pid: p.id, k, value: this.statOf(p.id, k) })),
+      })),
+      onStat: (e) => {
+        const t = e.target, v = t.value.replace(/[^0-9]/g, "");
+        if (t.value !== v) t.value = v;
+        this.entered[t.dataset.pid + "." + t.dataset.k] = v;
+      },
+
+      formation: live ? (this.formationText || "—") : "4-3-3",
+      styleNote: live ? this.styleText : "You asked for a high press building from the back, but the measured line height of 33.9 metres is a mid block. Your personnel support the press, but the starting line sits too deep. Raise it before adding pressing triggers, or the midfield keeps being played through.",
+      shapeMetrics: live
+        ? (this.shape
+            ? [{ value: this.shape.line_height_m + " m", label: "Line height", note: "Deepest outfield average position from your own goal line" },
+               { value: this.shape.width_m + " m", label: "Team width", note: "Touchline to touchline across the tracked outfielders" },
+               { value: this.shape.compactness_m + " m", label: "Compactness", note: "Average distance of outfielders from the team centre" }]
+            : [{ value: "—", label: "Team shape", note: "Not enough tracked outfielders in the clip to measure shape" }])
+        : [
+        { value: "33.9 m", label: "Line height", note: "About five metres deeper than a press needs" },
+        { value: "46.9 m", label: "Team width", note: "The side stretches the pitch well in possession" },
+        { value: "19.4 m", label: "Compactness", note: "Deepest to highest outfielder" },
+      ],
+      teamSwot: this.teamSwotData.map(([title, color, items]) => ({ title, color, items })),
+      posWeak: this.posWeakData.map(([area, issue]) => ({ area, issue })),
+      confidenceNote: live ? this.confText(all) : "Three players were matched to a shirt number with less than eighty percent confidence, and one further track could not be resolved at all, so it counted towards team shape only. Identity comes from your team sheet rather than from reading shirts, which holds well over a short clip and softens over a full match.",
+      topThree: all.slice().sort((a, b) => b.rating - a.rating).slice(0, 3).map((p) => ({
+        num: p.num, name: p.name, pos: p.pos, rating: p.rating.toFixed(1), color: this.rateColor(p.rating),
+        open: () => this.setState({ view: "player", selected: p.id }),
+      })),
+      xiNodes, trackNodes, spreadNodes,
+
+      pitchModes: [
+        { label: "Average positions", go: () => this.setState({ pitchMode: "positions" }), bg: heat ? "transparent" : "#FFFFFF", fg: heat ? "#6E7570" : "#16191A" },
+        { label: "Heatmap", go: () => this.setState({ pitchMode: "heat" }), bg: heat ? "#FFFFFF" : "transparent", fg: heat ? "#16191A" : "#6E7570" },
+      ],
+      pitchCaption: heat ? "Showing " + sel.name + " over the tracked clip" : "Average position of every tracked player",
+      heatmapOn: heat,
+      pitchBg: heat ? "#12241A" : "#EDF2EE",
+      pitchLine: heat ? "rgba(255,255,255,.22)" : "#FFFFFF",
+      heatmapImg: this.heatEl(sel),
+      selHeatmapImg: this.heatEl(sel),
+      trackList: all.map((p) => ({
+        num: p.num, name: p.name, conf: this.fmtConf(p.conf),
+        confFg: p.conf != null && p.conf < 0.8 ? "#A9741F" : "#A0A6A1",
+        bg: p.id === sel.id ? "#EFF4F0" : "transparent",
+        select: () => this.setState({ selected: p.id, pitchMode: "heat" }),
+      })),
+
+      players: all.slice().sort((a, b) => b.rating - a.rating).map((p) => ({
+        num: p.num, name: p.name, meta: p.num + ", " + p.pos + ", " + p.foot + " foot",
+        rating: p.rating.toFixed(1), color: this.rateColor(p.rating),
+        short: p.summary.split(". ")[0] + ".",
+        tiles: [
+          { v: p.m.goals, l: "goals" }, { v: p.m.assists, l: "assists" },
+          { v: this.fmtDist(p.dist), l: "distance" }, { v: this.fmtSpd(p.spd), l: "km/h" },
+        ],
+        open: () => this.setState({ view: "player", selected: p.id }),
+      })),
+
+      sel: {
+        num: sel.num, name: sel.name, rating: sel.rating.toFixed(1), color: this.rateColor(sel.rating),
+        meta: "Number " + sel.num + ", " + sel.pos + ", " + sel.foot + " footed, age " + sel.age,
+        summary: sel.summary,
+        confLabel: sel.conf == null ? "Not tracked in this clip" : "Identity confidence " + this.fmtConf(sel.conf) + (sel.conf < 0.9 ? " (from the team sheet)" : " (shirt number)"),
+        confFg: sel.conf == null || sel.conf < 0.8 ? "#A9741F" : "#8A908C",
+        tiles: [
+          { v: sel.m.goals, l: "goals" }, { v: sel.m.assists, l: "assists" },
+          { v: sel.m.shots, l: "shots" }, { v: sel.m.tkw + "/" + sel.m.tk, l: "tackles won" },
+          { v: this.fmtDist(sel.dist), l: "distance" }, { v: this.fmtSpd(sel.spd), l: "top km/h" },
+        ],
+        zones: sel.z ? [
+          { pct: sel.z[0] * 100, color: "#DCE9E0", label: sel.z[0] > 0.12 ? Math.round(sel.z[0] * 100) + "% def" : "" },
+          { pct: sel.z[1] * 100, color: "#B9D6C4", label: sel.z[1] > 0.12 ? Math.round(sel.z[1] * 100) + "% mid" : "" },
+          { pct: sel.z[2] * 100, color: "#93BEA5", label: sel.z[2] > 0.12 ? Math.round(sel.z[2] * 100) + "% att" : "" },
+        ] : [{ pct: 100, color: "#EDEDE6", label: "No position data" }],
+        swot: sel.swot.map((items, i) => ({ title: swotTitles[i], color: swotColors[i], items })),
+        plan: sel.plan.map(([focus, drill, why]) => ({ focus, drill, why })),
+      },
+
+      matches: (live
+        ? [[s.opponent, s.date.split("-").reverse().join("/"), "—", this.formationText || "—", trackedCount + " of " + all.length, "Latest", "#16191A", true]]
+        : this.matchList).map(([opponent, date, score, shape, tracked, tag, bar, current]) => ({
+        opponent, date, score, shape, tracked, tag, bar,
+        tagFg: current ? "#2C6E49" : "#A0A6A1",
+        open: this.go("dashboard"),
+      })),
+
+      settingsGroups: [
+        { title: "Club", note: "Used on every report and on anything you share with players.", rows: [
+          { label: "Club name", hint: "Shown in the sidebar and on shared reports", value: this.props.clubName ?? "Northfield AFC" },
+          { label: "Squad size", hint: "Names on the team sheet", value: "11" },
+          { label: "Camera", hint: "Panorama export, not the follow camera", value: "Veo Cam 3" },
+        ] },
+        { title: "Pipeline", note: "Where clips are processed and reports are written.", rows: [
+          { label: "Tracking service", hint: "Detection, tracking and pitch mapping", value: "SoccerNet sn-gamestate on Modal" },
+          { label: "Analyst model", hint: "Writes the read, the shape and the training plans", value: "Claude" },
+          { label: "Clip length", hint: "Longer clips soften player identity", value: "30 to 90 seconds" },
+        ] },
+        { title: "Data", note: "What is kept, and for how long.", rows: [
+          { label: "Clip retention", hint: "Clips are fetched from your link, not stored here", value: "Not stored" },
+          { label: "Reports", hint: "Kept for the season, exportable at any time", value: "Full season" },
+          { label: "Confidence figures", hint: "Show how certain the tracking was", value: (this.props.showConfidence ?? true) ? "Visible" : "Hidden" },
+        ] },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

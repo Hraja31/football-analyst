@@ -1,0 +1,58 @@
+{
+  "_note": "FIXTURE — a representative node-8 output, hand-written to the §10c schema. Used for offline frontend development and as a demo fallback. Not a real model response.",
+  "match_id": "m_001",
+  "team": {
+    "formation": "4-3-3",
+    "best_xi": [
+      { "player_id": "p_01", "position": "GK" },
+      { "player_id": "p_02", "position": "RB" },
+      { "player_id": "p_03", "position": "CB" },
+      { "player_id": "p_04", "position": "CB" },
+      { "player_id": "p_05", "position": "LB" },
+      { "player_id": "p_06", "position": "CDM" },
+      { "player_id": "p_07", "position": "CM" },
+      { "player_id": "p_08", "position": "CM" },
+      { "player_id": "p_11", "position": "RW" },
+      { "player_id": "p_09", "position": "ST" },
+      { "player_id": "p_10", "position": "LW" }
+    ],
+    "team_swot": {
+      "strengths": [
+        "Central defensive duel-winning is excellent — Ferreira and Adeyemi won 9 of 10 tackles between them.",
+        "Nkemelu screened the back four effectively: 6 of 8 tackles won and the highest defensive-third involvement of any midfielder.",
+        "Team width of 46.9 m shows the side genuinely stretches the pitch when in possession."
+      ],
+      "weaknesses": [
+        "Left side is the clear vulnerability — Doyle won only 2 of 7 tackles and committed 3 fouls, matching the coach's account of goals conceded down that flank.",
+        "Shot conversion of 3 from 20 (15%) with only 10 on target is wasteful for the volume created.",
+        "Osei's heat is concentrated in a narrow central band of the attacking third, consistent with the coach's note that he was isolated."
+      ],
+      "opportunities": [
+        "Line height of 33.9 m is deeper than a high-press identity requires; pushing the defensive line up 5-8 m would compress play and support the press the coach wants.",
+        "Both full-backs are averaging positions past the halfway line — the platform for a high press already exists on the right."
+      ],
+      "threats": [
+        "The 1-v-1 exposure on the left will be targeted again by any opponent who reviews this match.",
+        "The coach reports the side tiring after 60 minutes; a higher press without rotation will worsen that."
+      ]
+    },
+    "position_weaknesses": [
+      { "area": "left flank", "issue": "Doyle beaten repeatedly in isolation; 2/7 tackles won and 3 fouls. Needs either cover from Vasquez tracking back or a double-pivot shift to that side." },
+      { "area": "centre forward support", "issue": "Osei's average position (84, 34) sits well ahead of both central midfielders, leaving a gap in the final third." }
+    ],
+    "playing_style_note": "The stated identity is a high press building from the back, but the measured line height of 33.9 m reflects a mid-block. The personnel support the press; the starting line does not yet. Raise the line before adding pressing triggers, or the midfield will keep being played through."
+  },
+  "players": [
+    { "player_id": "p_01", "rating": 7.1, "summary": "Four saves from six shots faced. Positioning was sound and distribution kept the side building from the back as instructed.", "swot": { "strengths": ["67% save rate", "Stayed high enough to sweep behind a mid-block"], "weaknesses": ["Limited involvement in the build-up phase"], "opportunities": ["Can start the high press by playing earlier into the pivot"], "threats": ["A higher defensive line will expose him to more through-balls"] }, "training_plan": [ { "focus": "Sweeper-keeper positioning", "drill": "Back-line coordination with a line 8 m higher; keeper starts on the 18-yard line", "why": "The coach wants a high press, which changes his starting position" } ] },
+    { "player_id": "p_02", "rating": 7.0, "summary": "An assist and the most advanced average position of the back four. Defensively busy at 3 of 5 tackles won, but the yellow card came from recovery challenges.", "swot": { "strengths": ["1 assist", "Genuine attacking threat from right-back"], "weaknesses": ["3 of 5 tackles won; caught upfield on transitions"], "opportunities": ["Already the template for the high press the coach wants"], "threats": ["Card risk — one yellow from a recovery challenge"] }, "training_plan": [ { "focus": "Recovery running", "drill": "Repeated 30 m recovery sprints from an advanced position", "why": "He commits forward often; the fouls come from arriving late" } ] },
+    { "player_id": "p_03", "rating": 7.6, "summary": "Five of six tackles won and a shot on target. The more conservative of the two centre-backs and the reason the centre held.", "swot": { "strengths": ["83% tackle success", "Reliable in the duel"], "weaknesses": ["CV identity confidence 0.74 — some spatial data less certain"], "opportunities": ["Can step into midfield when the line pushes up"], "threats": ["Age 31 — recovery pace against a higher line"] }, "training_plan": [ { "focus": "Defending the high line", "drill": "Offside-line stepping drills with a pressing trigger", "why": "The intended press requires him to defend more space behind" } ] },
+    { "player_id": "p_04", "rating": 7.8, "summary": "A goal and a perfect 4 from 4 in the tackle. The standout defensive performance of the match.", "swot": { "strengths": ["100% tackle success", "Scored — an aerial threat from set pieces"], "weaknesses": ["Zone share shows almost no attacking-third presence outside set plays"], "opportunities": ["Left-footed — can be the primary build-up outlet on the weak side"], "threats": ["Carrying more defensive load if Doyle keeps being isolated"] }, "training_plan": [ { "focus": "Left-side build-up", "drill": "Third-man combinations with the left-back and left central midfielder", "why": "His left foot is the tool to relieve pressure on the problem flank" } ] },
+    { "player_id": "p_05", "rating": 5.4, "summary": "The match's clear problem area. Two of seven tackles won, three fouls and a booking, on the flank the coach identified for both goals conceded. This is a structural issue, not only an individual one — he received little cover.", "swot": { "strengths": ["Kept an advanced average position despite being under pressure"], "weaknesses": ["29% tackle success", "3 fouls and a yellow", "Beaten in isolation repeatedly"], "opportunities": ["Age 22 — the defensive 1-v-1 is coachable"], "threats": ["Opponents will target this flank again", "Card accumulation"] }, "training_plan": [ { "focus": "Defensive 1-v-1", "drill": "Isolated full-back vs winger, forcing the attacker inside onto cover", "why": "2/7 tackles won on the flank where both goals originated" }, { "focus": "Cover and shuffle", "drill": "Back-four shifting with the near centre-back covering", "why": "He was left isolated; the fix is partly collective" } ] },
+    { "player_id": "p_06", "rating": 7.7, "summary": "Eight tackles, six won — the highest defensive volume in the side. Screened the back four exactly as a pivot should.", "swot": { "strengths": ["75% tackle success on the highest volume", "Disciplined central positioning"], "weaknesses": ["Minimal attacking-third presence"], "opportunities": ["Can shift left to cover the problem flank"], "threats": ["2 fouls — pressing higher raises that risk"] }, "training_plan": [ { "focus": "Press triggers", "drill": "Pivot stepping to press on a back-pass cue", "why": "He is the player who makes the high press safe" } ] },
+    { "player_id": "p_07", "rating": 7.0, "summary": "An assist and 3 of 4 tackles won. Covered 175 m in the tracked minute, among the highest in the side.", "swot": { "strengths": ["1 assist", "High work rate"], "weaknesses": ["1 shot on target from 2 attempts"], "opportunities": ["Positioned to support the striker more directly"], "threats": ["Workload — the side fades after 60 minutes"] }, "training_plan": [ { "focus": "Arriving in the box", "drill": "Late runs into the area from midfield", "why": "Osei is isolated; midfield arrival is the cheapest fix" } ] },
+    { "player_id": "p_08", "rating": 8.0, "summary": "A goal, an assist and two of three shots on target. The most productive attacking output in the match.", "swot": { "strengths": ["Goal and assist", "67% shot accuracy", "Left foot gives balance"], "weaknesses": ["1 of 2 tackles won — limited defensive contribution"], "opportunities": ["The creative reference point for the whole side"], "threats": ["Defensive work will need to rise if the press goes higher"] }, "training_plan": [ { "focus": "Pressing from the front line of midfield", "drill": "Counter-press within 5 seconds of a turnover", "why": "The press only works if the creator presses too" } ] },
+    { "player_id": "p_09", "rating": 6.3, "summary": "Scored once from five shots, but only two on target, and the heatmap confirms the coach's read: his heat sits in a narrow central band ahead of the midfield, with little support.", "swot": { "strengths": ["Scored", "Highest shot volume in the side"], "weaknesses": ["20% conversion from 5 shots", "2 of 5 on target", "Isolated — average position 20 m ahead of the nearest midfielder"] , "opportunities": ["Better service would lift the conversion without changing his game"], "threats": ["Continued isolation will suppress his output regardless of finishing"] }, "training_plan": [ { "focus": "Finishing under fatigue", "drill": "Shooting repetitions after a 20 m sprint, both feet", "why": "2 of 5 on target from good positions" }, { "focus": "Dropping to link", "drill": "Third-man combinations dropping between the lines", "why": "Isolation is the root cause; he can solve some of it himself" } ] },
+    { "player_id": "p_10", "rating": 6.0, "summary": "Two shots, one on target, no goal contribution. Played on the flank where the side conceded, and his tracking back is part of the fix.", "swot": { "strengths": ["Held width — his heat is tight to the left touchline"], "weaknesses": ["No goal contribution", "Limited defensive support for Doyle"], "opportunities": ["Age 21 with room to add end product"], "threats": ["Defensive expectation rises if the left flank keeps leaking"] }, "training_plan": [ { "focus": "Defensive tracking", "drill": "Winger recovery runs to form a temporary back five", "why": "Both goals came down his flank; the winger is half the solution" } ] },
+    { "player_id": "p_11", "rating": 7.2, "summary": "An assist and two of three shots on target. Covered the most ground of any player in the tracked minute at 189 m.", "swot": { "strengths": ["1 assist", "67% shot accuracy", "Highest distance covered"], "weaknesses": ["CV identity confidence 0.80 — spatial figures carry some uncertainty"], "opportunities": ["Pairs well with an overlapping Boyd on the right"], "threats": ["High workload against a side that tires after 60 minutes"] }, "training_plan": [ { "focus": "Crossing under pressure", "drill": "Cut-back delivery from the byline with a defender engaged", "why": "He reaches the byline often; the final ball decides the output" } ] }
+  ]
+}
