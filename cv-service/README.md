@@ -5,7 +5,7 @@ shape alone, so the backend can change freely underneath it.
 
 ```
 POST /process   {clip_url, match_id, roster, duration_s, fps}  ->  {job_id}
-GET  /result/{job_id}                                          ->  §6b
+GET  /result?job_id=…   (or /result/{job_id})                  ->  §6b
 GET  /health
 ```
 

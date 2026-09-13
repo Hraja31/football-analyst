@@ -111,6 +111,19 @@ def _run_inline(job_id: str, payload: dict[str, Any]) -> None:
         }
 
 
+@api.get("/result")
+def result_by_query(job_id: str) -> dict[str, Any]:
+    """`GET /result?job_id=` — the form n8n's node 4 calls.
+
+    Both spellings are served because the n8n mock CV workflow only answers the
+    query form, and the whole point of the §6b contract is that swapping CV
+    backends is a change to CV_SERVICE_URL in node 2 and nothing else. With only
+    the path form here, pointing the pipeline back at the mock would 404 every
+    poll and ride out the full polling window before degrading.
+    """
+    return result(job_id)
+
+
 @api.get("/result/{job_id}")
 def result(job_id: str) -> dict[str, Any]:
     """Return the §6b contract.
