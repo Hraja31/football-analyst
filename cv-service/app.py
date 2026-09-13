@@ -11,13 +11,14 @@ change here is a silent break there.
 """
 from __future__ import annotations
 
+import hmac
 import os
 import time
 import traceback
 import uuid
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 api = FastAPI(title="Footage to Tactics — CV service", version="1.0.0")
@@ -28,6 +29,19 @@ api = FastAPI(title="Footage to Tactics — CV service", version="1.0.0")
 #   gamestate  SoccerNet sn-gamestate via TrackLab. Highest fidelity, heaviest.
 BACKEND = os.environ.get("CV_BACKEND", "mock")
 
+# Shared secret between n8n and this service. On `gamestate` every accepted job
+# rents a GPU, so an open /process is an open bill. Unset means unauthenticated —
+# kept possible so the service can deploy before n8n holds the token, and
+# reported by /health so an open service is visible rather than assumed closed.
+CV_API_TOKEN = os.environ.get("CV_API_TOKEN", "")
+
+
+def require_token(x_cv_token: str | None = Header(default=None)) -> None:
+    if not CV_API_TOKEN:
+        return
+    if not x_cv_token or not hmac.compare_digest(x_cv_token, CV_API_TOKEN):
+        raise HTTPException(401, "missing or invalid X-CV-Token")
+
 
 class ProcessRequest(BaseModel):
     clip_url: str | None = None
@@ -37,6 +51,10 @@ class ProcessRequest(BaseModel):
     # uploading a full half gets the first 90 s instead of an error.
     duration_s: float = 90.0
     fps: int = 5
+    # Which side of the camera view the coach's team defends: "left" or "right".
+    # sn-gamestate separates the two teams but cannot know which one is ours;
+    # without this, `gamestate` has to find distinctive shirt numbers or fail.
+    home_side: Literal["left", "right"] | None = None
 
 
 JOBS_DICT = "f2t-cv-jobs"
@@ -64,14 +82,18 @@ def _store():
 
 @api.get("/health")
 def health() -> dict[str, Any]:
-    return {"ok": True, "backend": BACKEND}
+    return {"ok": True, "backend": BACKEND, "auth": bool(CV_API_TOKEN)}
 
 
-@api.post("/process")
+@api.post("/process", dependencies=[Depends(require_token)])
 def process(req: ProcessRequest) -> dict[str, Any]:
     """Accept a job and return immediately. Node 4 polls for the result."""
     if BACKEND != "mock" and not req.clip_url:
         raise HTTPException(400, "clip_url is required unless CV_BACKEND=mock")
+    # Refused here rather than inside the GPU job: file://, internal hosts and
+    # other schemes never reach a container, and the mistake costs no GPU time.
+    if BACKEND != "mock" and not req.clip_url.lower().startswith(("https://", "http://")):
+        raise HTTPException(400, "clip_url must be an http(s) link to the video file")
 
     job_id = "job_" + uuid.uuid4().hex[:8]
     store = _store()
@@ -82,6 +104,12 @@ def process(req: ProcessRequest) -> dict[str, Any]:
     }
 
     payload = req.model_dump()
+    if BACKEND == "mock":
+        # The mock is a JSON file re-labelled onto the roster. Spawning run_job for
+        # it would start an A10G container to read a fixture.
+        _run_inline(job_id, payload)
+        return {"job_id": job_id, "status": "processing", "match_id": payload["match_id"]}
+
     try:
         import modal  # noqa: PLC0415
 
@@ -89,7 +117,7 @@ def process(req: ProcessRequest) -> dict[str, Any]:
         # minutes. This is exactly why node 4 is a polling loop.
         modal.Function.from_name(MODAL_APP, "run_job").spawn(job_id, payload)
     except Exception:
-        # Local/dev, or mock mode with no GPU function deployed: run inline.
+        # Local/dev with no GPU function deployed: run inline.
         _run_inline(job_id, payload)
 
     return {"job_id": job_id, "status": "processing", "match_id": payload["match_id"]}
@@ -111,7 +139,7 @@ def _run_inline(job_id: str, payload: dict[str, Any]) -> None:
         }
 
 
-@api.get("/result")
+@api.get("/result", dependencies=[Depends(require_token)])
 def result_by_query(job_id: str) -> dict[str, Any]:
     """`GET /result?job_id=` — the form n8n's node 4 calls.
 
@@ -124,7 +152,7 @@ def result_by_query(job_id: str) -> dict[str, Any]:
     return result(job_id)
 
 
-@api.get("/result/{job_id}")
+@api.get("/result/{job_id}", dependencies=[Depends(require_token)])
 def result(job_id: str) -> dict[str, Any]:
     """Return the §6b contract.
 

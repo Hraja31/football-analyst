@@ -17,7 +17,7 @@ const CONFIG = {
   // A healthy live run lands in ~75 s and a slow one has taken 100 s, so 40
   // polls sat exactly on the boundary and would occasionally fall back to the
   // sample report with a perfectly good report seconds away.
-  POLL_MAX: 72,     // ~180s
+  POLL_MAX: 288,    // ~12 min: a real GPU run on a 30 s clip takes 5-7 min end to end
 };
 
 const DATA = "../sample-data";
@@ -44,6 +44,11 @@ async function init() {
   $("#endpointHint").textContent = live
     ? `Connected to ${new URL(CONFIG.SUBMIT_URL).host}`
     : "No n8n endpoints configured — set SUBMIT_URL and REPORT_URL in app.js. 'Load sample report' works regardless.";
+
+  try {
+    const saved = localStorage.getItem("f2t.access_code");
+    if (saved) $("#matchForm").elements.access_code.value = saved;
+  } catch (e) { /* storage blocked: the coach types it each time */ }
 
   $("#demoBtn").addEventListener("click", loadSample);
   $("#matchForm").addEventListener("submit", onSubmit);
@@ -80,9 +85,16 @@ function collectPayload() {
     const row = byId[i.dataset.pid];
     if (row) row[i.dataset.k] = i.value === "" ? null : Number(i.value);
   });
+  const accessCode = (f.get("access_code") || "").trim();
+  try { localStorage.setItem("f2t.access_code", accessCode); } catch (e) { /* private window */ }
   return {
     ...roster,
-    match_id: `m_${Date.now().toString(36)}`,
+    // No match_id: node 2 mints an unguessable one and returns it. Reports are
+    // fetched by that id alone, so it must not be predictable.
+    match_id: undefined,
+    access_code: accessCode,
+    club_name: (f.get("club_name") || "").trim() || undefined,
+    home_side: f.get("home_side") || undefined,
     opponent: f.get("opponent"),
     date: f.get("date"),
     footage_url: f.get("footage_url"),
@@ -109,13 +121,19 @@ async function onSubmit(e) {
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error(`submit returned ${res.status}`);
+    if (!res.ok) {
+      // n8n answers a rejected submission with a generic 500, so the most
+      // likely cause is named rather than guessed at.
+      throw new Error(`The submission was rejected (HTTP ${res.status}). Check the club access code; if it is correct, the pipeline itself failed.`);
+    }
     const { match_id } = await res.json();
     step("submit", "done");
-    await showReportFor(match_id || payload.match_id);
+    await showReportFor(match_id);
   } catch (err) {
-    $("#progressHint").textContent = `${err.message} — falling back to the sample report.`;
-    setTimeout(loadSample, 1200);
+    // Never fall back to the sample report here: after a failed submission it
+    // would show a coach someone else's analysis as though it were theirs.
+    showView("submit");
+    $("#endpointHint").textContent = err.message;
   }
 }
 
@@ -136,8 +154,9 @@ async function showReportFor(matchId) {
       if (body.stage) step(body.stage, "active");
     } catch { /* keep polling — transient network */ }
   }
-  $("#progressHint").textContent = "Timed out waiting for the report. Showing the sample instead.";
-  setTimeout(loadSample, 1200);
+  // Not the sample: after a real submission it would pass off canned analysis
+  // as this match's. The report keeps building server-side; the link resumes it.
+  $("#progressHint").innerHTML = `Still working on this match. Reopen it later with <a href="?match_id=${encodeURIComponent(matchId)}">this link</a>.`;
 }
 
 async function loadSample() {
@@ -191,6 +210,7 @@ function render(report, cvData, degraded, isSample) {
   const notes = [];
   if (isSample) notes.push("Showing the bundled sample report (no live pipeline run).");
   if (degraded) notes.push("CV unavailable for this match — analysis is based on manual stats and coach notes only.");
+  if (report && report.stored === false) notes.push("This report was not saved to the database and exists only in the pipeline's short-term cache — download or share it now.");
   if (unresolved) notes.push(`${unresolved} track${unresolved > 1 ? "s" : ""} could not be matched to a shirt number and ${unresolved > 1 ? "were" : "was"} used for team shape only.`);
   $("#dataNote").textContent = notes.join(" ");
 

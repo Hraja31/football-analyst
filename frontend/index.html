@@ -25,12 +25,27 @@
 
     <form id="matchForm">
       <div class="grid2">
+        <label>Club access code
+          <input name="access_code" type="password" autocomplete="off" required>
+          <small>Issued to the club. Remembered on this device only.</small>
+        </label>
+        <label>Club name <input name="club_name" placeholder="Optional"></label>
+      </div>
+      <div class="grid2">
         <label>Opponent<input name="opponent" value="Riverside FC" required></label>
         <label>Match date<input name="date" type="date" value="2026-09-13" required></label>
       </div>
       <label>Veo panorama clip URL
         <input name="footage_url" value="https://example.com/veo/veo_clip.mp4" required>
-        <small>Use the <strong>panorama</strong> export, not the AI follow-cam — panning breaks tracking.</small>
+        <small>A wide view with the pitch markings visible. Gentle pans are fine; cuts, replays and close-ups are not. Must be a direct link to the video file.</small>
+      </label>
+      <label>In this clip, which goal does your team defend?
+        <select name="home_side">
+          <option value="">Not sure</option>
+          <option value="left">The left-hand goal, as the camera sees it</option>
+          <option value="right">The right-hand goal, as the camera sees it</option>
+        </select>
+        <small>Tracking can tell the two teams apart but not which one is yours. If you're not sure, it tries shirt numbers, and skips spatial data rather than guess.</small>
       </label>
       <label>Coach notes
         <textarea name="coach_notes" rows="3">We conceded twice down our left in the first half. I want us pressing higher but we looked leggy after 60 minutes. Osei was isolated up top all game.</textarea>

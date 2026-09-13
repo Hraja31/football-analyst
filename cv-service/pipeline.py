@@ -25,13 +25,39 @@ HEATMAP_BASE = os.environ.get("HEATMAP_BASE", "")
 
 
 # ──────────────────────────────────────────────────────────────── helpers ────
+# A 90 s clip is tens to a few hundred MB even at 4K. The cap is what stops a
+# pasted full-match export, or a link that never ends, filling the container disk.
+MAX_CLIP_MB = float(os.environ.get("MAX_CLIP_MB", "1024"))
+
+
 def _download(url: str, dest: Path) -> Path:
+    """Fetch the clip, refusing anything that is plainly not a video file.
+
+    The common wrong link is a page, not a file — a YouTube, Drive or Veo viewer
+    URL. Left alone that surfaces three steps later as "ffmpeg produced no
+    frames", so it is named here instead.
+    """
     import requests  # noqa: PLC0415
 
-    with requests.get(url, stream=True, timeout=300) as r:
+    limit = int(MAX_CLIP_MB * 1024 * 1024)
+    with requests.get(url, stream=True, timeout=(30, 300)) as r:
         r.raise_for_status()
+        ctype = (r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if ctype.startswith("text/") or ctype in ("application/json", "application/xhtml+xml"):
+            raise ValueError(
+                f"clip_url returned {ctype}, not a video. It must be a direct link to the "
+                "video file, not a YouTube, Drive or Veo viewer page.")
+        declared = r.headers.get("Content-Length")
+        if declared and declared.isdigit() and int(declared) > limit:
+            raise ValueError(f"clip is {int(declared) / 1048576:.0f} MB; the limit is {MAX_CLIP_MB:.0f} MB")
+
+        written = 0
         with open(dest, "wb") as fh:
             for chunk in r.iter_content(1 << 20):
+                written += len(chunk)
+                # Checked while streaming too: Content-Length can be absent or wrong.
+                if written > limit:
+                    raise ValueError(f"clip exceeds the {MAX_CLIP_MB:.0f} MB limit")
                 fh.write(chunk)
     return dest
 
@@ -48,33 +74,90 @@ def _extract_frames(clip: Path, out_dir: Path, fps: int, duration_s: float) -> l
     return sorted(out_dir.glob("*.jpg"))
 
 
+# Per-frame pitch calibration on a moving camera is noisy, and not gently: on a
+# 30 s tactical-cam clip a third of raw frame-to-frame steps implied speeds no
+# human reaches, and the worst were calibration failures putting a player tens of
+# metres away for one frame. Summed as distance that produced 465 m in 23 s. The
+# cleaning below was tuned on that clip (see README, "Tracking noise"):
+OUTLIER_M = 4.0        # drop a point further than this from its local median
+SMOOTH_S = 0.9         # half-width of the median smoothing window, seconds
+MAX_STEP_MPS = 10.0    # ~36 km/h, just above an elite sprint; faster is not movement
+# Less believable movement than this measures nothing. Such a track still has a
+# position and a heatmap, but distance and speed are null — never 0, which the
+# analyst would read as "did not move" (the same rule node 4b follows).
+MIN_MOVEMENT_S = 2.0
+
+
+def _clean_track(pts: list[tuple[float, float, float]], fps: int) -> list[tuple[float, float, float]]:
+    """Reject one-frame calibration spikes, then median-smooth what is left.
+
+    A median, not a mean: a mean would smear a 40 m spike across its
+    neighbours instead of discarding it.
+    """
+    import statistics  # noqa: PLC0415
+
+    half = max(1, int(SMOOTH_S * fps))
+    pts = sorted(pts)
+
+    def around(seq, i):
+        return seq[max(0, i - half): i + half + 1]
+
+    kept = []
+    for i, (t, x, y) in enumerate(pts):
+        nb = around(pts, i)
+        if math.hypot(x - statistics.median(p[1] for p in nb),
+                      y - statistics.median(p[2] for p in nb)) <= OUTLIER_M:
+            kept.append((t, x, y))
+    return [(t, statistics.median(p[1] for p in around(kept, i)),
+             statistics.median(p[2] for p in around(kept, i)))
+            for i, (t, _, _) in enumerate(kept)]
+
+
 def _aggregate(tracks: dict[int, list[tuple[float, float, float]]],
                fps: int) -> dict[int, dict[str, Any]]:
     """Per-track spatial figures from a list of (t, x, y) in pitch metres.
 
-    Speed is computed over a half-second window rather than frame to frame:
-    at 5 fps a one-pixel jitter in the projection turns into an implausible
-    sprint, and a top speed of 60 km/h in the report would discredit everything
-    next to it.
+    Positions are cleaned first (_clean_track). Distance then skips any step
+    faster than MAX_STEP_MPS — an identity switch or a calibration jump, not
+    running — and top speed is measured over one-second windows that contain no
+    such step. Both are therefore conservative: they under-read a genuine burst
+    rather than invent a sprint, and should be presented as approximate.
     """
     out: dict[int, dict[str, Any]] = {}
-    win = max(1, fps // 2)
 
-    for tid, pts in tracks.items():
+    for tid, raw in tracks.items():
+        if len(raw) < 2:
+            continue
+        span = (max(p[0] for p in raw) - min(p[0] for p in raw))
+        pts = _clean_track(raw, fps)
         if len(pts) < 2:
             continue
-        pts = sorted(pts)
-        dist = 0.0
-        for (_, x0, y0), (_, x1, y1) in zip(pts, pts[1:]):
-            dist += math.hypot(x1 - x0, y1 - y0)
 
-        top = 0.0
-        for i in range(len(pts) - win):
-            t0, x0, y0 = pts[i]
-            t1, x1, y1 = pts[i + win]
+        dist = 0.0
+        trusted_s = 0.0
+        plausible = []
+        for (t0, x0, y0), (t1, x1, y1) in zip(pts, pts[1:]):
             dt = t1 - t0
-            if dt > 0:
-                top = max(top, math.hypot(x1 - x0, y1 - y0) / dt * 3.6)
+            step = math.hypot(x1 - x0, y1 - y0)
+            ok = dt > 0 and step / dt <= MAX_STEP_MPS
+            plausible.append(ok)
+            if ok:
+                dist += step
+                trusted_s += dt
+
+        top = None
+        for i in range(len(pts) - fps):
+            if not all(plausible[i:i + fps]):
+                continue
+            t0, x0, y0 = pts[i]
+            t1, x1, y1 = pts[i + fps]
+            if t1 > t0:
+                v = math.hypot(x1 - x0, y1 - y0) / (t1 - t0) * 3.6
+                top = v if top is None else max(top, v)
+        # Judged on time whose steps were believable, not on the track's span: a
+        # track can last ten seconds and have every step rejected, and its 0 m
+        # would then be the filter's output, not the player's.
+        measurable = trusted_s >= MIN_MOVEMENT_S
 
         xs = [p[1] for p in pts]
         ys = [p[2] for p in pts]
@@ -84,26 +167,49 @@ def _aggregate(tracks: dict[int, list[tuple[float, float, float]]],
         n = float(len(xs))
 
         out[tid] = {
-            "distance_m": round(dist, 1),
-            "top_speed_kmh": round(min(top, 40.0), 1),
+            "distance_m": round(dist, 1) if measurable else None,
+            "top_speed_kmh": round(min(top, MAX_STEP_MPS * 3.6), 1) if measurable and top is not None else None,
             "avg_position": {"x": round(sum(xs) / n, 1), "y": round(sum(ys) / n, 1)},
             "zone_share": {
                 "def_third": round(thirds[0] / n, 2),
                 "mid_third": round(thirds[1] / n, 2),
                 "att_third": round(thirds[2] / n, 2),
             },
-            "minutes_tracked": round((pts[-1][0] - pts[0][0]) / 60.0, 2),
+            "minutes_tracked": round(span / 60.0, 2),
             "_samples": pts,
         }
     return out
 
 
-def _team_shape(players: list[dict[str, Any]]) -> dict[str, Any]:
-    """Same definitions as scripts/generate_fixtures.py, so the real pipeline and
-    the fixture describe shape the same way and the numbers stay comparable."""
-    pts = [(p["avg_position"]["x"], p["avg_position"]["y"])
-           for p in players if p.get("player_id") and p.get("team") != "gk"]
-    if not pts:
+# Team shape from real tracking counts every outfield track followed at least
+# this long. Shorter ones are re-ID fragments — a few frames of someone — and
+# their average position is not a place in the team's shape.
+MIN_SHAPE_TRACK_S = 5.0
+# Below this many usable positions there is no shape to measure.
+MIN_SHAPE_TRACKS = 4
+
+
+def _team_shape(players: list[dict[str, Any]], include_unresolved: bool = False) -> dict[str, Any]:
+    """Compactness, width and line height of the team's outfield positions.
+
+    Shape does not need identity, so the real backends pass include_unresolved:
+    with strict identity most tracks carry no name, and measuring only the named
+    ones reduced a whole team to a single point — width 0 m, compactness 0 m —
+    which the analyst would read as a measurement. The mock keeps the fixture's
+    resolved-only definition (same as scripts/generate_fixtures.py) so it still
+    reproduces the frozen figures exactly.
+
+    Too few usable positions returns {} rather than zeros, for the same reason.
+    """
+    def usable(p: dict[str, Any]) -> bool:
+        if p.get("team") == "gk" or not p.get("avg_position"):
+            return False
+        if include_unresolved:
+            return (p.get("minutes_tracked") or 0) * 60 >= MIN_SHAPE_TRACK_S
+        return bool(p.get("player_id"))
+
+    pts = [(p["avg_position"]["x"], p["avg_position"]["y"]) for p in players if usable(p)]
+    if len(pts) < MIN_SHAPE_TRACKS:
         return {}
     xs = [p[0] for p in pts]
     ys = [p[1] for p in pts]
@@ -195,43 +301,173 @@ def _lite(job_id: str, payload: dict[str, Any], frames: list[Path], fps: int) ->
     return _to_contract(job_id, payload, agg, teams, jersey={}, fps=fps, n_frames=len(frames))
 
 
+SN_GAMESTATE_DIR = os.environ.get("SN_GAMESTATE_DIR", "/opt/sn-gamestate")
+SN_GAMESTATE_PYTHON = os.environ.get("SN_GAMESTATE_PYTHON", f"{SN_GAMESTATE_DIR}/.venv/bin/python")
+# Checkpoints for the detector, re-ID, jersey OCR and pitch calibration. On the
+# Modal volume so they download once for the app, not once per cold start.
+GAMESTATE_MODEL_DIR = os.environ.get("GAMESTATE_MODEL_DIR", "/weights/sn-gamestate")
+
+
 def _gamestate(job_id: str, payload: dict[str, Any], frames: list[Path], fps: int) -> dict[str, Any]:
     """SoccerNet sn-gamestate via TrackLab.
 
-    This gives tracking, re-identification, jersey-number recognition and pitch
-    localisation in a single pass — the whole of what §7 asks for.
+    Tracking, re-identification, jersey-number recognition, team clustering and
+    per-frame pitch localisation in one pass — the whole of §7, and the only
+    backend that needs no PITCH_HOMOGRAPHY, so it tolerates a panning camera.
 
-    The awkward part, and the reason `lite` exists alongside it: sn-gamestate is
-    built around the SoccerNet-GSR dataset layout, not loose mp4s. So the frames
-    are written into that layout first and TrackLab is pointed at it.
+    Driven through TrackLab's ExternalVideo dataset rather than the SoccerNet-GSR
+    layout: that takes a plain .mp4, needs no ground truth, and never triggers
+    TrackLab's automatic dataset download (tens of GB). ExternalVideo reads every
+    frame it is given, so it gets a clip rebuilt from the frames already sampled
+    at `fps`, keeping this backend on exactly the frames `lite` would see.
     """
     work = frames[0].parent.parent
-    seq = work / "SNGS-live" / "img1"
-    seq.mkdir(parents=True, exist_ok=True)
-    for i, f in enumerate(frames, start=1):
-        os.link(f, seq / f"{i:06d}.jpg")
-
-    (seq.parent / "Labels-GameState.json").write_text(json.dumps({
-        "info": {"version": "0.1", "im_dir": "img1", "frame_rate": fps,
-                 "seq_length": len(frames), "im_ext": ".jpg", "name": "SNGS-live"},
-        "images": [{"file_name": f"{i:06d}.jpg", "image_id": str(i), "frame_id": i}
-                   for i in range(1, len(frames) + 1)],
-        "annotations": [], "categories": [],
-    }))
-
-    out_dir = work / "tracklab-out"
+    clip = work / "clip_sampled.mp4"
     subprocess.run(
-        ["python", "-m", "tracklab.main", "-cn", "soccernet",
-         f"dataset.dataset_path={work}", f"dataset.eval_set=live",
-         "visualization.save_videos=False", f"experiment_name={job_id}",
-         f"hydra.run.dir={out_dir}"],
-        check=True, cwd=os.environ.get("SN_GAMESTATE_DIR", "/opt/sn-gamestate"),
+        ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps),
+         "-i", str(frames[0].parent / "%06d.jpg"),
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", str(clip)],
+        check=True,
     )
 
-    tracks, jersey = _read_tracklab(out_dir, fps)
+    state = work / "tracklab-state.pklz"
+    log_path = work / "tracklab.log"
+    Path(GAMESTATE_MODEL_DIR).mkdir(parents=True, exist_ok=True)
+    cmd = [
+        SN_GAMESTATE_PYTHON, "-m", "tracklab.main", "-cn", "soccernet",
+        "dataset=youtube", f"dataset.video_path={clip}",
+        # ExternalVideo exposes one split, "val"; soccernet.yaml asks for "valid".
+        "dataset.eval_set=val",
+        # No ground truth exists for a coach's clip, and no one watches the mp4.
+        "eval_tracking=False", "visualization.cfg.save_videos=False",
+        "use_rich=False",
+        f"model_dir={GAMESTATE_MODEL_DIR}", f"data_dir={work / 'data'}",
+        f"state.save_file={state}", f"experiment_name={job_id}",
+        f"hydra.run.dir={work / 'tracklab-out'}",
+    ]
+    with open(log_path, "w") as log:
+        proc = subprocess.run(cmd, cwd=SN_GAMESTATE_DIR, stdout=log, stderr=subprocess.STDOUT)
+    tail = "\n".join(log_path.read_text(errors="replace").splitlines()[-40:])
+    print(tail)
+    if proc.returncode != 0 or not state.exists():
+        raise RuntimeError(f"sn-gamestate exited {proc.returncode}; last output:\n{tail}")
+
+    exported = work / "tracklab-state.json"
+    subprocess.run([SN_GAMESTATE_PYTHON, str(Path(__file__).with_name("gamestate_export.py")),
+                    str(state), str(exported)], check=True)
+    data = json.loads(exported.read_text())
+
+    tracks, jersey, teams, home = _gamestate_tracks(data["rows"], payload, fps)
+    if not tracks:
+        raise RuntimeError(
+            "sn-gamestate produced no localised player tracks for the coach's team "
+            f"(columns seen: {data.get('columns')})")
     agg = _aggregate(tracks, fps)
-    teams = {}  # sn-gamestate assigns roles itself; carried through by _read_tracklab
-    return _to_contract(job_id, payload, agg, teams, jersey=jersey, fps=fps, n_frames=len(frames))
+    out = _to_contract(job_id, payload, agg, teams, jersey=jersey, fps=fps, n_frames=len(frames))
+    out["home_team"] = home
+    return out
+
+
+def _home_side(payload: dict[str, Any], side_tracks: dict[str, set[int]],
+               jersey: dict[int, int]) -> dict[str, Any]:
+    """Which of sn-gamestate's two sides is the coach's team.
+
+    sn-gamestate clusters kits into "left" and "right" but has no idea which one
+    the coach manages, and everything downstream depends on getting it right:
+    the wrong side would put the opposition's movement under this squad's names.
+
+    In order of trust:
+      1. `home_side` in the request ("left" = the team defending the left goal).
+      2. Shirt numbers — but only numbers that are *distinctive*. Both teams in a
+         clip usually wear 1–11, so a #9 read proves nothing; a #23 read that is
+         on this roster and never appears on the other side does.
+
+    If neither settles it the job fails with that reason, and n8n degrades to a
+    report without spatial data — rather than guessing a coin flip and presenting
+    it as analysis.
+    """
+    hint = payload.get("home_side") or (payload.get("roster") or {}).get("home_side")
+    if hint in ("left", "right"):
+        return {"side": hint, "basis": "home_side given in the request"}
+
+    roster_numbers = {p.get("jersey_number") for p in (payload.get("roster") or {}).get("players") or []
+                      if p.get("jersey_number") is not None}
+    numbers = {side: {jersey[t] for t in tids if t in jersey} for side, tids in side_tracks.items()}
+    left, right = numbers.get("left", set()), numbers.get("right", set())
+    # A number read on both sides cannot tell them apart.
+    left_only = (left - right) & roster_numbers
+    right_only = (right - left) & roster_numbers
+    if len(left_only) >= 2 and len(left_only) > 2 * len(right_only):
+        return {"side": "left", "basis": f"distinctive roster shirt numbers read: {sorted(left_only)}"}
+    if len(right_only) >= 2 and len(right_only) > 2 * len(left_only):
+        return {"side": "right", "basis": f"distinctive roster shirt numbers read: {sorted(right_only)}"}
+    raise RuntimeError(
+        "could not tell which team in the clip is the coach's: shirt numbers did not "
+        f"separate them (left {sorted(left)}, right {sorted(right)}). "
+        'Send "home_side": "left" or "right" with the job.')
+
+
+def _gamestate_tracks(rows: list[dict[str, Any]], payload: dict[str, Any], fps: int):
+    """Flattened sn-gamestate detections -> (tracks, jersey, teams, home_team).
+
+    Keeps only the coach's side, drops referees and the ball, and turns
+    sn-gamestate's centre-origin pitch into §6b's corner origin with the team
+    attacking left to right.
+    """
+    from collections import Counter  # noqa: PLC0415
+
+    people = [r for r in rows
+              if r.get("role") in ("player", "goalkeeper") and r.get("track_id") is not None
+              and r.get("x") is not None and r.get("y") is not None and r.get("image_id") is not None]
+
+    def majority(values):
+        values = [v for v in values if v is not None]
+        return Counter(values).most_common(1)[0][0] if values else None
+
+    by_track: dict[int, list[dict[str, Any]]] = {}
+    for r in people:
+        by_track.setdefault(int(r["track_id"]), []).append(r)
+
+    jersey: dict[int, int] = {}
+    side_of: dict[int, str] = {}
+    role_of: dict[int, str] = {}
+    for tid, dets in by_track.items():
+        num = majority([int(d["jersey_number"]) for d in dets if d.get("jersey_number") is not None])
+        if num is not None:
+            jersey[tid] = num
+        side = majority([d.get("team") for d in dets])
+        if side in ("left", "right"):
+            side_of[tid] = side
+        role_of[tid] = majority([d.get("role") for d in dets]) or "player"
+
+    side_tracks: dict[str, set[int]] = {"left": set(), "right": set()}
+    for tid, side in side_of.items():
+        side_tracks[side].add(tid)
+    home = _home_side(payload, side_tracks, jersey)
+
+    def to_attacking_frame(x: float, y: float) -> tuple[float, float]:
+        # sn-gamestate: metres from the centre spot. "left" is the team whose goal
+        # is on the left of the image, so it already attacks towards +x; "right"
+        # is rotated 180 degrees (not mirrored, which would swap its flanks).
+        if home["side"] == "left":
+            return x + PITCH_L / 2, y + PITCH_W / 2
+        return PITCH_L / 2 - x, PITCH_W / 2 - y
+
+    tracks: dict[int, list[tuple[float, float, float]]] = {}
+    for tid in side_tracks[home["side"]]:
+        for d in by_track[tid]:
+            px, py = to_attacking_frame(float(d["x"]), float(d["y"]))
+            # Calibration occasionally lands a foot point off the pitch entirely;
+            # a few metres is projection noise near the lines, more is a bad frame.
+            if not (-3.0 <= px <= PITCH_L + 3.0 and -3.0 <= py <= PITCH_W + 3.0):
+                continue
+            px = min(max(px, 0.0), PITCH_L)
+            py = min(max(py, 0.0), PITCH_W)
+            tracks.setdefault(tid, []).append((int(d["image_id"]) / fps, px, py))
+
+    teams = {tid: ("gk" if role_of.get(tid) == "goalkeeper" else "home") for tid in tracks}
+    jersey = {tid: n for tid, n in jersey.items() if tid in tracks}
+    return tracks, jersey, teams, home
 
 
 # ──────────────────────────────────────────────────────────── projection ────
@@ -292,33 +528,6 @@ def _assign_teams(crops: dict[int, list[Any]]) -> dict[int, str]:
     return {tid: ("home" if lb == home else "away") for tid, lb in zip(ids, labels)}
 
 
-def _read_tracklab(out_dir: Path, fps: int):
-    """Read TrackLab's per-frame output into (t, x, y) samples plus jersey reads."""
-    tracks: dict[int, list[tuple[float, float, float]]] = {}
-    jersey: dict[int, int] = {}
-    candidates = list(out_dir.rglob("*.json"))
-    if not candidates:
-        raise RuntimeError(f"sn-gamestate produced no output under {out_dir}")
-
-    data = json.loads(max(candidates, key=lambda p: p.stat().st_size).read_text())
-    for det in data.get("predictions", data.get("annotations", [])):
-        tid = det.get("track_id")
-        pitch = det.get("bbox_pitch") or {}
-        x, y = pitch.get("x_bottom_middle"), pitch.get("y_bottom_middle")
-        if tid is None or x is None or y is None:
-            continue
-        # TrackLab centres the pitch on (0,0); §6b uses a corner origin.
-        tracks.setdefault(int(tid), []).append(
-            (int(det.get("image_id", 0)) / fps, float(x) + PITCH_L / 2, float(y) + PITCH_W / 2))
-        num = det.get("jersey_number")
-        if num not in (None, ""):
-            try:
-                jersey[int(tid)] = int(num)
-            except (TypeError, ValueError):
-                pass
-    return tracks, jersey
-
-
 def _to_contract(job_id, payload, agg, teams, jersey, fps, n_frames) -> dict[str, Any]:
     """Map tracks onto the roster and emit §6b.
 
@@ -367,7 +576,11 @@ def _to_contract(job_id, payload, agg, teams, jersey, fps, n_frames) -> dict[str
     # else's movement, which is worse than reporting an unresolved track. This
     # is also what makes "the coach selects which players to track" meaningful —
     # an unselected player can no longer consume a selected player's slot.
-    strict = bool(jersey)
+    # CV_IDENTITY=roster restores §7a's original roster anchoring for every
+    # backend: unread tracks take the remaining roster entries by longevity at
+    # 0.55 confidence, so each player gets spatial numbers — labelled as a
+    # positional guess. The default, strict, names only confident shirt reads.
+    strict = bool(jersey) and os.environ.get("CV_IDENTITY", "strict") != "roster"
     spare = [i for i in range(len(roster)) if i not in taken]
 
     players = []
@@ -402,7 +615,7 @@ def _to_contract(job_id, payload, agg, teams, jersey, fps, n_frames) -> dict[str
     return {"job_id": job_id, "status": "done",
             "match_id": payload.get("match_id"),
             "clip": {"duration_s": round(n_frames / fps, 1), "fps_processed": fps},
-            "players": players, "team_shape": _team_shape(players)}
+            "players": players, "team_shape": _team_shape(players, include_unresolved=True)}
 
 
 def _publish_heatmap(match_id: str, player_id: str | None, samples, rp: dict | None) -> str | None:

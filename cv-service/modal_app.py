@@ -18,7 +18,6 @@ import modal
 
 # Pinned upstreams for the "gamestate" backend. Bump deliberately, not by drift.
 SN_GAMESTATE_SHA = "1c958345067218297d221e45e1a6405f975f83e0"
-TRACKLAB_SHA = "5767e86c32a6d6c68e2fc8ae7311f558fff6c7b2"
 
 app = modal.App("footage-to-tactics-cv")
 
@@ -51,22 +50,57 @@ GPU_IMAGE = (
         "supervision==0.25.1",
         "scikit-learn==1.5.2",
     )
-    # sn-gamestate / TrackLab are NOT installed here. Enabling them is a project,
-    # not a flag — see "gamestate: why it is not enabled" in README.md. The short
-    # version, learned by trying it:
+    # sn-gamestate, installed the way upstream supports and nothing else works:
     #
-    #   * sn-gamestate must be installed with `uv`, not pip. Its calibration
-    #     plugin is declared via [tool.uv.sources] as a local path, so pip fails
-    #     with "No matching distribution found for tracklab_calibration".
-    #   * It declares requires-python ">=3.9,<3.10". Modal's 2025.06 builder
-    #     starts at 3.10, so the interpreter has to come from uv itself.
-    #   * It hard-pins torch==1.13.1 and pulls mmdet/mmocr, which drag in mmcv —
-    #     a source build matched to torch+CUDA.
+    #   * with uv, not pip — its calibration plugin is a local path declared in
+    #     [tool.uv.sources], which pip cannot see ("No matching distribution
+    #     found for tracklab_calibration");
+    #   * on Python 3.9 — it pins requires-python ">=3.9,<3.10" and Modal's
+    #     builder starts at 3.10, so uv provisions the interpreter itself;
+    #   * from uv.lock (--frozen), so torch 1.13.1 and the OpenMMLab stack come
+    #     out exactly as upstream resolved them rather than as pip backtracks;
+    #   * with mmcv as a prebuilt wheel for torch 1.13 / cu117, which is what
+    #     upstream's `mim install mmcv==2.0.1` fetches. --no-build makes a
+    #     missing wheel fail loudly instead of starting a long source build.
     #
-    # The working shape is: install uv, `uv python install 3.9`, `uv sync
-    # --frozen` in /opt/sn-gamestate (the repo ships uv.lock), and have
-    # pipeline._gamestate call /opt/sn-gamestate/.venv/bin/python instead of
-    # "python". Commits worth starting from are pinned above.
+    # It lives in its own venv, so it never touches the `lite` stack above;
+    # pipeline._gamestate calls that venv's python.
+    .env({
+        "UV_PYTHON_INSTALL_DIR": "/opt/uv-python",
+        "UV_LINK_MODE": "copy",
+        "UV_NO_CACHE": "1",
+        "SN_GAMESTATE_DIR": "/opt/sn-gamestate",
+        # Checkpoints fetched on first run land on the volume, once for the app.
+        "HF_HOME": "/weights/hf",
+        "TORCH_HOME": "/weights/torch",
+    })
+    .run_commands(
+        "pip install 'uv>=0.5'",
+        "git clone https://github.com/SoccerNet/sn-gamestate.git /opt/sn-gamestate",
+        f"cd /opt/sn-gamestate && git checkout {SN_GAMESTATE_SHA}",
+        "cd /opt/sn-gamestate && uv venv --python 3.9 .venv",
+        "cd /opt/sn-gamestate && uv sync --frozen --no-dev",
+        "uv pip install --python /opt/sn-gamestate/.venv/bin/python mmcv==2.0.1 "
+        "--find-links https://download.openmmlab.com/mmcv/dist/cu117/torch1.13/index.html "
+        "--no-build",
+        # Fail the build, not the first coach's job, if the stack does not import.
+        "/opt/sn-gamestate/.venv/bin/python -c \"import torch, mmcv, mmdet, mmocr, tracklab, "
+        "sn_gamestate; print('sn-gamestate stack:', torch.__version__, mmcv.__version__)\"",
+    )
+    # Upstream fix, applied in the image. The calibration modules read the batch's
+    # first row as `metadatas["keypoints"][0]`. On SoccerNet's own dataset the
+    # image ids are strings, so pandas treats [0] as "first row". TrackLab's
+    # ExternalVideo — the loader for an arbitrary clip — uses integer frame ids,
+    # where [0] means "the row labelled 0", which exists only in the first batch:
+    # every later frame raised KeyError: 0. The same functions already use
+    # .iloc[0] a few lines further down; this makes the lookups agree. Its own
+    # layer, so it does not rebuild the install above. The grep fails the build
+    # if an instance survives.
+    .run_commands(
+        "sed -i -E 's/metadatas\\[\"([a-z_]+)\"\\]\\[0\\]/metadatas[\"\\1\"].iloc[0]/g' "
+        "/opt/sn-gamestate/sn_gamestate/calibration/*.py",
+        "! grep -rnE 'metadatas\\[\"[a-z_]+\"\\]\\[0\\]' /opt/sn-gamestate/sn_gamestate",
+    )
 )
 
 # app.py / pipeline.py are shipped into the image itself. add_local_dir is the
@@ -120,6 +154,13 @@ def run_job(job_id: str, payload: dict) -> None:
             "match_id": payload.get("match_id"),
             "error": f"{type(exc).__name__}: {exc}",
         }
+    finally:
+        # Persist any checkpoints downloaded during the job, so the next cold
+        # start finds them instead of fetching them again.
+        try:
+            weights.commit()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 @app.function(image=BASE, **_common)
