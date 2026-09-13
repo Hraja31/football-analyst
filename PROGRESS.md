@@ -11,8 +11,8 @@ running state.
 | Rung | Scope | State |
 |---|---|---|
 | **1** | Working demo on mock data: form → merge → Claude → report → frontend | ✅ **running live, ~100 s end to end** |
-| **2** | Supabase persistence + verified CV failure branch | 🟡 project live, schema + bucket in place; failure branch verified offline, not yet live |
-| **3** | Real CV pipeline on GPU | 🟡 `cv-service/` written and deployable to Modal; never executed on a GPU |
+| **2** | Supabase persistence + verified CV failure branch | ✅ reports persist and `v_match_report` serves them (fixed 2026-09-13, see below); failure branch verified live |
+| **3** | Real CV pipeline on GPU | 🟡 Modal service live on `mock`; real heatmaps + strict identity written and tested; `gamestate` install blocked (see `cv-service/README.md`) |
 
 | Component | State | Notes |
 |---|---|---|
@@ -22,13 +22,36 @@ running state.
 | DB schema | ✅ | Run against the live project; `heatmaps` bucket public, 11 SVGs uploaded |
 | README + workflow overview | ✅ | B5 pass/fail gate covered |
 | n8n mock CV workflow | ✅ | 6 nodes, reproduces the frozen fixture exactly — verified live over HTTP |
-| n8n main pipeline | ✅ | 34 nodes, **verified live end to end** |
+| n8n main pipeline | ✅ | 38 nodes, **verified live end to end** |
 | Frontend pointed at the live webhooks | ✅ | |
 | Supabase project | ✅ | `tifynfruqgkbuiyiljfb`, credential wired to 7 nodes |
 | Anthropic key | ✅ | In the n8n credential store; Sonnet 5 |
 | Playing-style tactics | ✅ | Team call returns press height, line, width, tempo, out-of-possession |
 | `cv-service/` for Modal | 🟡 | `mock` verified; `lite` and `gamestate` written, never executed |
 | Failure branch verified **live** | ✅ | Mock CV deactivated mid-flight: `degraded: true`, 11 players, report in 47 s |
+
+---
+
+## 2026-09-13 (later) — wiring hardened, reports actually persist
+
+**Reports had never been written to Supabase.** Node 6 fanned out to the Claude
+branch and the Supabase branch; n8n v1 runs branches one at a time in canvas
+order, and Claude's sat higher, so `10a`/`10b` inserted reports before `7c` had
+created the match row. Every run: 409 on `reports_match_id_fkey`, swallowed by
+continue-on-error, report served from n8n's cache with `source: n8n`. Storage
+now runs in series before Claude (`6 → 7a…7d → 8b`). Verified live, execution
+461: 11 `reports` rows, 1 `team_reports` row, and `v_match_report` returning the
+4-3-3 with 11 players, for the first time.
+
+| Change | Why |
+|---|---|
+| CV polling 6 × 3 s → 60 × 10 s | Tuned for the instant mock. A real GPU run takes minutes and would always have timed out into 4b, looking exactly like a broken CV |
+| CV service serves `/result?job_id=` as well as `/result/{job_id}` | Node 4 had been moved to the path form, which the n8n mock doesn't serve — breaking the one-URL backend swap. Node 4 is back on the query form both answer |
+| `n8n/tool1_workflow.json` re-exported from live | It still pointed `CV_SERVICE_URL` at the n8n mock and carried the old `/result` URL |
+| Real per-track heatmaps, uploaded per match | Real backends were linking to the fixture's SVGs |
+| Two-pass identity; strict when OCR exists | A long unidentified track could take a jersey-matched player's slot; roster selection now means something |
+
+Live runs: 92 s and 95.6 s end to end, `degraded: false`, full best XI.
 
 ---
 

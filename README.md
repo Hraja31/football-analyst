@@ -50,7 +50,7 @@ webhook until the report is ready.
 | Coach frontend | ✅ form + report view, verified in-browser |
 | Report fixture | ✅ full 11-player analysis for offline demo |
 | DB schema | ✅ `db/schema.sql`, ready to run |
-| n8n main pipeline | ✅ `n8n/tool1_workflow.json`, 33 nodes — see `n8n/WORKFLOW_OVERVIEW.md` |
+| n8n main pipeline | ✅ `n8n/tool1_workflow.json`, 38 nodes — see `n8n/WORKFLOW_OVERVIEW.md` |
 | n8n mock CV service | ✅ `n8n/mock_cv_workflow.json`, honours the §6b contract |
 | Real CV service | ✗ Rung 3, deliberately out of scope for this build — see below |
 
@@ -83,6 +83,9 @@ with no network, no n8n and no API keys — it is the demo fallback.
      (`7a`–`7d`, `10a`, `10b`, `12b`);
    - put your project URL in `SUPABASE_URL` at the top of the `2 Normalize` Code
      node **and** in `12 Lookup report`;
+   - set `CV_SERVICE_URL` in `2 Normalize` to your CV backend — the Modal
+     service (`cv-service/`) or the mock workflow (`https://<host>/webhook/cv-mock`).
+     Both answer `GET /result?job_id=`, so switching is that one line;
    - upload `sample-data/heatmaps/*.svg` to the public `heatmaps` bucket and
      regenerate the fixture so the heatmaps have real URLs:
      ```bash
@@ -115,13 +118,14 @@ Deactivate `mock_cv_workflow` in n8n and submit again. The run completes, the
 report still arrives, spatial fields are empty, and the frontend shows a banner
 explaining that CV did not complete. Nothing hangs and nothing errors out.
 
-Three variants, all of which land on the same branch:
+Four variants, all of which land on the same branch:
 
 | What you break | Where it is caught |
 |---|---|
 | Deactivate the mock workflow | node 3 gets no `job_id` → `4 CV job accepted?` routes straight to 4b |
 | Append `?fail=1` to the result URL in `2 Normalize` | the mock returns `status: failed` → 4b on the first poll |
-| Point `CV_SERVICE_URL` at a black hole | six polls, ~18 s, then 4b on timeout |
+| Point `CV_SERVICE_URL` at a black hole | node 3 times out after 20 s with no `job_id` → straight to 4b |
+| A CV service that accepts the job and never finishes | polls for ~10 min (60 × 10 s), then 4b on timeout |
 
 ---
 

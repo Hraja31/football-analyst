@@ -8,7 +8,7 @@ Two workflows run on `shaneesilva.app.n8n.cloud`:
 
 | Workflow | File | Role |
 |---|---|---|
-| `tool1_workflow.json` | main pipeline, 34 nodes | form → CV → merge → Claude → store → serve |
+| `tool1_workflow.json` | main pipeline, 38 nodes | form → CV → merge → Claude → store → serve |
 | `mock_cv_workflow.json` | mock CV service, 6 nodes | stands in for the GPU service behind the same HTTP contract |
 
 ---
@@ -38,7 +38,7 @@ two nodes, both are listed against that number.
 | 13 | `13 Respond to coach` | Respond to Webhook | Returns `{ match_id, status, report_url }` immediately, then execution continues |
 | 3 | `3 Start CV job` | HTTP Request | `POST {CV_SERVICE_URL}/process` `{clip_url, roster}` → `{job_id}` |
 | 4 | `4 CV job accepted?` | If | `job_id` present? No → straight to 4b, without polling a service that isn't there |
-| 4 | `4 Wait for CV` → `4 Get CV result` → `4 CV done?` → `4 Poll again?` | Wait → HTTP Request → If → If | `GET /result?job_id=` until `status=done`; max 6 polls, 3 s apart |
+| 4 | `4 Wait for CV` → `4 Get CV result` → `4 CV done?` → `4 Poll again?` | Wait → HTTP Request → If → If | `GET /result?job_id=` until `status=done`; max 60 polls, 10 s apart (~10 min). `failed` exits on the next check |
 | **4b** | `4b CV unavailable` | Set | On `failed`, unreachable or timeout: `degraded=true`, `cv_error` set, CV fields left absent, **execution continues** |
 | 5 | `5a Roster rows` / `5b CV rows` / `5 Merge CV + manual` | Code / Code / Merge | Combine by `player_id`, Enrich Input 1 → one row per squad player |
 | 6 | `6 Build profile` | Code | Derived metrics (conversion, accuracy, tackle success, save rate) + team aggregate → the §10b user message |
@@ -63,8 +63,8 @@ two nodes, both are listed against that number.
                                                                                            │
 2 ─────────────────────────────────────────────────► 5a ──► 5 (input 1)                    │
                                                                                            ▼
-      7a → 7b → 7c → 7d ◄── 6 ──► 8b → 6b → 8a → 11 → 10a → 10b
-      (Supabase side branch)          └── one team call, then 11 player calls ──┘
+      6 → 7a → 7b → 7c → 7d → 8b → 6b → 8a → 11 → 10a → 10b
+          └─ Supabase, in series ─┘   └── one team call, then 11 player calls ──┘
 
 12  (separate trigger) → static-data cache, else Supabase view → responds
 11b (separate trigger) → static-data cache → responds HTML
@@ -81,11 +81,22 @@ node 2, input 2 off whichever CV branch won. The Merge is set to *Combine → by
 matching fields → `player_id` → Enrich Input 1*, so every squad player survives
 even when input 2 carries nothing but a sentinel.
 
-**Supabase hangs off the side.** Nodes 7a–7d run as a branch from node 6, not in
-the line to Claude, and every write is set to continue on error. A database that
-is down, misconfigured or not yet created cannot stop a coach getting a report.
-The price of that is a silent write failure — the execution log tells you whether
-a match was actually stored, the report does not.
+**Supabase runs in series, before Claude.** Nodes 7a–7d used to hang off node 6
+as a side branch. n8n's v1 engine runs one branch to completion before starting
+the next, ordered by canvas position, and 8b sat above 7a — so the whole Claude
+branch, including `10a`/`10b`, ran before `7c` had created the match row. Every
+report insert hit `reports_match_id_fkey` (409), continue-on-error swallowed it,
+and no report ever reached Supabase; the report endpoint had been serving n8n's
+in-memory copy all along. The order now lives in the wiring rather than in the
+layout: `6 → 7a → 7b → 7c → 7d → 8b`, so club, players and match exist before
+anything references them.
+
+Resilience is unchanged. All four writes continue on error *and* always output
+data, so a database that is down, misconfigured or not yet created still hands
+an item to 8b and cannot stop a coach getting a report. `8b` reads `team_prompt`
+from `6 Build profile` by name, since its direct input is now 7d's empty
+response. A write failure is still silent in the report itself — check the
+execution log, or `v_match_report`, to confirm a match was stored.
 
 ### Why the parser was removed
 
@@ -118,7 +129,7 @@ Every node that talks to the outside world (`3`, `4 Get CV result`, `7a`–`7d`,
 produces an item rather than a stopped execution.
 
 If the CV service is dead, refuses the job, reports `failed`, or never finishes
-within six polls, the run lands on `4b CV unavailable`, and:
+within the polling window (~10 minutes), the run lands on `4b CV unavailable`, and:
 
 - `degraded: true` and a human-readable `cv_error` are set;
 - `5b CV rows` emits a sentinel, so the Merge branch cannot stall;
