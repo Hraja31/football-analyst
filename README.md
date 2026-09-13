@@ -6,7 +6,7 @@ best XI, a training plan per player, and a rating.
 
 **For:** the semi-pro / local club coach who already films on a Veo camera but
 has no analyst, no budget, and no time.
-
+ 
 **Hackathon track:** Best Overall / End-to-End Integration.
 
 **Demo video:** [`demo/footballanalyst.mp4`](demo/footballanalyst.mp4) (2:19, walks through a live run from submission to report)
