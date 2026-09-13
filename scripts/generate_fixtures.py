@@ -8,10 +8,15 @@ the length, attacking left-to-right; y = 0-68 across).
 Regenerate with a real asset host once Supabase Storage exists:
     python3 scripts/generate_fixtures.py --base-url https://<proj>.supabase.co/storage/v1/object/public/heatmaps
 """
-import argparse, json, math, os, random
+import argparse, json, math, os, random, sys
+
+# One renderer, shared with the CV service, so the fixture and a real match draw
+# the same picture from the same numbers. cv-service is a sibling directory
+# rather than an installed package, hence the path insert.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cv-service"))
+from heatmap import CELL, density_grid, heat_colour, render_svg  # noqa: E402
 
 PITCH_X, PITCH_Y = 105.0, 68.0
-CELL = 3.0                      # heatmap cell size in metres
 SAMPLES = 900                   # touch/position samples per player
 SEED = 20260913
 
@@ -43,66 +48,6 @@ def sample_points(rng, cx, cy, sx, sy, n):
         y = clamp(rng.gauss(cy, sy), 1.0, PITCH_Y - 1.0)
         pts.append((x, y))
     return pts
-
-
-def density_grid(pts):
-    nx, ny = int(PITCH_X / CELL), int(PITCH_Y / CELL)
-    g = [[0.0] * nx for _ in range(ny)]
-    for x, y in pts:
-        g[min(int(y / CELL), ny - 1)][min(int(x / CELL), nx - 1)] += 1.0
-    # one box-blur pass so the plot reads as heat, not confetti
-    out = [[0.0] * nx for _ in range(ny)]
-    for j in range(ny):
-        for i in range(nx):
-            tot = cnt = 0.0
-            for dj in (-1, 0, 1):
-                for di in (-1, 0, 1):
-                    jj, ii = j + dj, i + di
-                    if 0 <= jj < ny and 0 <= ii < nx:
-                        tot += g[jj][ii]; cnt += 1
-            out[j][i] = tot / cnt
-    return out
-
-
-def heat_colour(t):
-    """t in 0..1 -> transparent blue -> green -> yellow -> red."""
-    stops = [(0.0, (24, 60, 130)), (0.35, (28, 150, 120)),
-             (0.65, (235, 200, 60)), (1.0, (214, 48, 42))]
-    for k in range(len(stops) - 1):
-        t0, c0 = stops[k]; t1, c1 = stops[k + 1]
-        if t0 <= t <= t1:
-            f = (t - t0) / (t1 - t0)
-            return tuple(round(c0[m] + (c1[m] - c0[m]) * f) for m in range(3))
-    return stops[-1][1]
-
-
-def render_svg(grid, name, number, avg):
-    S = 8  # px per metre
-    W, H = PITCH_X * S, PITCH_Y * S
-    peak = max(max(r) for r in grid) or 1.0
-    p = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W:.0f} {H:.0f}" width="{W:.0f}" height="{H:.0f}">',
-         f'<rect width="{W:.0f}" height="{H:.0f}" fill="#0f2417"/>']
-    for j, row in enumerate(grid):
-        for i, v in enumerate(row):
-            if v <= 0.01:
-                continue
-            t = (v / peak) ** 0.65
-            if t < 0.06:
-                continue
-            r, g, b = heat_colour(t)
-            p.append(f'<rect x="{i*CELL*S:.1f}" y="{j*CELL*S:.1f}" width="{CELL*S:.1f}" '
-                     f'height="{CELL*S:.1f}" fill="rgb({r},{g},{b})" opacity="{0.18+0.72*t:.2f}"/>')
-    L = 'fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"'
-    p += [f'<rect x="{S}" y="{S}" width="{W-2*S:.0f}" height="{H-2*S:.0f}" {L}/>',
-          f'<line x1="{W/2:.0f}" y1="{S}" x2="{W/2:.0f}" y2="{H-S:.0f}" {L}/>',
-          f'<circle cx="{W/2:.0f}" cy="{H/2:.0f}" r="{9.15*S:.0f}" {L}/>',
-          f'<rect x="{S}" y="{(34-20.15)*S:.0f}" width="{16.5*S:.0f}" height="{40.3*S:.0f}" {L}/>',
-          f'<rect x="{W-S-16.5*S:.0f}" y="{(34-20.15)*S:.0f}" width="{16.5*S:.0f}" height="{40.3*S:.0f}" {L}/>',
-          f'<circle cx="{avg[0]*S:.0f}" cy="{avg[1]*S:.0f}" r="7" fill="#fff" stroke="#111" stroke-width="2"/>',
-          f'<text x="{S+10}" y="{H-18}" fill="rgba(255,255,255,.85)" font-family="system-ui,sans-serif" '
-          f'font-size="22" font-weight="600">#{number} {name}</text>',
-          '</svg>']
-    return "\n".join(p)
 
 
 def main():

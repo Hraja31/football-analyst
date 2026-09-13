@@ -328,33 +328,70 @@ def _to_contract(job_id, payload, agg, teams, jersey, fps, n_frames) -> dict[str
     the frontend shows that uncertainty rather than hiding it.
     """
     roster = (payload.get("roster") or {}).get("players") or []
-    by_number = {p.get("jersey_number"): p for p in roster}
+    match_id = payload.get("match_id") or job_id
+
+    # Shirt numbers have to be unambiguous to anchor on. A roster carrying two
+    # #9s cannot resolve a #9 read, so a duplicated number matches nobody rather
+    # than matching whichever player happened to come last in the list.
+    by_number: dict[Any, int] = {}
+    duplicated: set[Any] = set()
+    for i, rp in enumerate(roster):
+        num = rp.get("jersey_number")
+        if num is None:
+            continue
+        if num in by_number:
+            duplicated.add(num)
+        else:
+            by_number[num] = i
+    for num in duplicated:
+        by_number.pop(num, None)
 
     # Longest-lived tracks first: they are the ones worth spending a shirt on.
     ranked = sorted(agg.items(), key=lambda kv: -len(kv[1]["_samples"]))
-    unclaimed = [p for p in roster]
-    players = []
 
+    # Pass 1 — confident jersey reads claim their roster entry before any
+    # positional guess can take it. Assigning in one greedy pass let a long
+    # unidentified track consume roster[0] and push the player whose number had
+    # actually been read onto a positional fallback further down.
+    claimed: dict[int, int] = {}
+    taken: set[int] = set()
+    for tid, _ in ranked:
+        idx = by_number.get(jersey.get(tid))
+        if idx is not None and idx not in taken:
+            taken.add(idx)
+            claimed[tid] = idx
+
+    # Pass 2 — positional fill, but only for a backend that reads no shirt
+    # numbers at all (`lite`). Where OCR is available, an unread track is an
+    # unknown body: naming it would print a real player's name over someone
+    # else's movement, which is worse than reporting an unresolved track. This
+    # is also what makes "the coach selects which players to track" meaningful —
+    # an unselected player can no longer consume a selected player's slot.
+    strict = bool(jersey)
+    spare = [i for i in range(len(roster)) if i not in taken]
+
+    players = []
     for tid, a in ranked:
-        num = jersey.get(tid)
-        rp = by_number.get(num)
-        if rp is not None and rp in unclaimed:
-            unclaimed.remove(rp)
+        idx = claimed.get(tid)
+        if idx is not None:
             conf = 0.92                      # a confident OCR read
-        elif unclaimed:
-            rp = unclaimed.pop(0)
+        elif not strict and spare:
+            idx = spare.pop(0)
             conf = 0.55                      # positional assignment only
         else:
-            rp, conf = None, 0.3             # a body we tracked but cannot name
+            idx, conf = None, 0.3            # a body we tracked but cannot name
 
+        rp = roster[idx] if idx is not None else None
         pid = (rp or {}).get("player_id")
         players.append({
             "player_id": pid,
             "track_id": int(tid),
-            "jersey_number": num,
+            "jersey_number": jersey.get(tid),
             "id_confidence": conf,
             "team": teams.get(tid, "home"),
-            "heatmap_url": _heatmap_url(pid),
+            # Drawn from this track's own samples and uploaded per match. None
+            # when publishing is not configured — see _publish_heatmap.
+            "heatmap_url": _publish_heatmap(match_id, pid, a["_samples"], rp),
             "distance_m": a["distance_m"],
             "top_speed_kmh": a["top_speed_kmh"],
             "avg_position": a["avg_position"],
@@ -366,6 +403,25 @@ def _to_contract(job_id, payload, agg, teams, jersey, fps, n_frames) -> dict[str
             "match_id": payload.get("match_id"),
             "clip": {"duration_s": round(n_frames / fps, 1), "fps_processed": fps},
             "players": players, "team_shape": _team_shape(players)}
+
+
+def _publish_heatmap(match_id: str, player_id: str | None, samples, rp: dict | None) -> str | None:
+    """Render this track's heatmap and upload it, returning the URL.
+
+    Deliberately returns None rather than falling back to {HEATMAP_BASE}/{id}.svg
+    the way the mock does. Those files are the fixture's movement: serving them
+    beside real tracking numbers would show a coach a picture of someone else's
+    match and label it with their player's name.
+    """
+    if not player_id:
+        return None
+    import heatmap  # noqa: PLC0415
+
+    return heatmap.build_and_publish(
+        match_id, player_id, samples,
+        name=(rp or {}).get("name") or player_id,
+        number=(rp or {}).get("jersey_number"),
+    )
 
 
 # ─────────────────────────────────────────────────────────────── entry ──────

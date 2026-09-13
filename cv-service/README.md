@@ -116,6 +116,44 @@ The camera brand does not matter. These do:
   identity from the roster and reports a lower `id_confidence` to say so — §7a
   is explicit that OCR alone is not trustworthy on wide footage.
 
+## Heatmaps
+
+`mock` serves the fixture's own SVGs from `HEATMAP_BASE`. The real backends draw
+one per track from that track's actual samples (`heatmap.py`, shared with
+`scripts/generate_fixtures.py` so a mock report and a real report plot the same
+way) and upload it to:
+
+```
+<SUPABASE_URL>/storage/v1/object/public/<HEATMAP_BUCKET>/<match_id>/<player_id>.svg
+```
+
+The `match_id` prefix matters: without it every match writes `p_07.svg` over the
+last one, silently rewriting the heatmaps on every report already issued.
+
+Publishing needs `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`. Without them the job
+still succeeds and `heatmap_url` is `null`. It deliberately does **not** fall
+back to `HEATMAP_BASE` the way the mock does — those images are the fixture's
+movement, and serving them next to real tracking numbers would show a coach a
+picture of someone else's match under their player's name.
+
+## Identity assignment
+
+`_to_contract()` resolves tracks to roster entries in two passes:
+
+1. Every confident jersey read claims its roster entry.
+2. Anything left over is filled positionally by track longevity, **but only for
+   a backend that reads no shirt numbers at all** (`lite`). Where OCR is
+   available an unread track stays `player_id: null` at low confidence.
+
+Both halves matter. Assigning in a single greedy pass let a long unidentified
+track take `roster[0]` and push the player whose number had actually been read
+onto a positional guess. And the strict second pass is what makes "the coach
+selects which players to track" mean anything — submit five players and an
+unselected sixth body can no longer consume one of their slots.
+
+A jersey number appearing twice on one roster anchors nothing, rather than
+resolving to whichever player happened to be listed last.
+
 ## `gamestate`: why it is not enabled
 
 The install is commented out in `modal_app.py`, and that is a considered state,
