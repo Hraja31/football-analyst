@@ -173,3 +173,4 @@ football-analyst/
 ├─ scripts/      generate_fixtures.py
 └─ .env.example
 ```
+:)
